@@ -31,6 +31,9 @@ vendor/
 
 # Reports (generated during testing)
 test-reports/
+test-*.txt
+test-*.json
+test-*.md
 *.json
 *.md
 !artifacts/**/*.json
