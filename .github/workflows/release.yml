@@ -1,0 +1,135 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: make test
+
+      - name: Build for multiple platforms
+        run: |
+          # Linux amd64
+          GOOS=linux GOARCH=amd64 go build -o bin/entropia-Linux-x86_64 ./cmd/entropia
+
+          # Linux arm64
+          GOOS=linux GOARCH=arm64 go build -o bin/entropia-Linux-arm64 ./cmd/entropia
+
+          # macOS amd64 (Intel)
+          GOOS=darwin GOARCH=amd64 go build -o bin/entropia-Darwin-x86_64 ./cmd/entropia
+
+          # macOS arm64 (Apple Silicon)
+          GOOS=darwin GOARCH=arm64 go build -o bin/entropia-Darwin-arm64 ./cmd/entropia
+
+          # Windows amd64
+          GOOS=windows GOARCH=amd64 go build -o bin/entropia-Windows-x86_64.exe ./cmd/entropia
+
+      - name: Create checksums
+        run: |
+          cd bin
+          sha256sum entropia-* > checksums.txt
+          cat checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            bin/entropia-Linux-x86_64
+            bin/entropia-Linux-arm64
+            bin/entropia-Darwin-x86_64
+            bin/entropia-Darwin-arm64
+            bin/entropia-Windows-x86_64.exe
+            bin/checksums.txt
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            # Entropia v${{ github.ref_name }}
+
+            **A non-normative tool for detecting entropy, decay, and support gaps in public claims.**
+
+            ## Installation
+
+            ### Quick Install (macOS/Linux)
+            ```bash
+            # Detect your platform automatically
+            curl -L https://github.com/ppiankov/entropia/releases/latest/download/entropia-$(uname -s)-$(uname -m) -o entropia
+            chmod +x entropia
+            sudo mv entropia /usr/local/bin/
+            ```
+
+            ### Manual Download
+
+            Download the appropriate binary for your platform:
+            - **Linux x86_64**: `entropia-Linux-x86_64`
+            - **Linux ARM64**: `entropia-Linux-arm64`
+            - **macOS Intel**: `entropia-Darwin-x86_64`
+            - **macOS Apple Silicon**: `entropia-Darwin-arm64`
+            - **Windows x86_64**: `entropia-Windows-x86_64.exe`
+
+            ### Verify Checksums
+
+            ```bash
+            # Download checksums
+            curl -LO https://github.com/ppiankov/entropia/releases/download/${{ github.ref_name }}/checksums.txt
+
+            # Verify (Linux/macOS)
+            sha256sum -c checksums.txt
+
+            # Or verify single file
+            sha256sum entropia-Linux-x86_64
+            ```
+
+            ## Quick Start
+
+            ```bash
+            # Scan a single URL
+            entropia scan https://en.wikipedia.org/wiki/Laksa
+
+            # Scan multiple URLs in parallel
+            cat > urls.txt <<EOF
+            https://en.wikipedia.org/wiki/Laksa
+            https://en.wikipedia.org/wiki/Common-law_marriage
+            EOF
+
+            entropia batch urls.txt --concurrency 5
+            ```
+
+            ## What's New
+
+            See full changelog below for detailed changes.
+
+            ## Documentation
+
+            - [CLI Guide](https://github.com/ppiankov/entropia/blob/main/docs/CLI_GUIDE.md)
+            - [Configuration Guide](https://github.com/ppiankov/entropia/blob/main/docs/CONFIGURATION.md)
+            - [README](https://github.com/ppiankov/entropia/blob/main/README.md)
+
+            ## Support
+
+            - **Issues**: https://github.com/ppiankov/entropia/issues
+            - **License**: MIT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
