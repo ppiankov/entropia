@@ -1,6 +1,10 @@
 package cache
 
-import "time"
+import (
+	"fmt"
+	"os"
+	"time"
+)
 
 // LayeredCache implements a multi-layer cache (memory + disk)
 type LayeredCache struct {
@@ -25,8 +29,8 @@ func (c *LayeredCache) Get(key string) ([]byte, bool) {
 
 	// Check disk cache
 	if val, found := c.disk.Get(key); found {
-		// Promote to memory cache
-		c.memory.Set(key, val, 0) // Use default TTL
+		// Promote to memory cache (ignore error - memory cache Set never fails)
+		_ = c.memory.Set(key, val, 0) // Use default TTL
 		return val, true
 	}
 
@@ -50,14 +54,22 @@ func (c *LayeredCache) Set(key string, value []byte, ttl time.Duration) error {
 
 // Delete removes a value from both caches
 func (c *LayeredCache) Delete(key string) error {
-	c.memory.Delete(key)
-	c.disk.Delete(key)
+	// Memory delete never fails, but disk delete might
+	_ = c.memory.Delete(key)
+	if err := c.disk.Delete(key); err != nil && !os.IsNotExist(err) {
+		// Ignore "not exists" errors - key might only be in memory
+		return fmt.Errorf("delete from disk cache: %w", err)
+	}
 	return nil
 }
 
 // Clear removes all values from both caches
 func (c *LayeredCache) Clear() error {
-	c.memory.Clear()
-	c.disk.Clear()
+	// Memory clear never fails, but disk clear might
+	_ = c.memory.Clear()
+	if err := c.disk.Clear(); err != nil && !os.IsNotExist(err) {
+		// Ignore "not exists" errors - cache dir might not exist
+		return fmt.Errorf("clear disk cache: %w", err)
+	}
 	return nil
 }
