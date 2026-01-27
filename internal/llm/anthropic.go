@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -102,7 +103,12 @@ func (p *AnthropicProvider) IsAvailable(ctx context.Context) bool {
 	}
 
 	_, err := p.makeRequest(ctx, req)
-	return err == nil
+	if err != nil {
+		// Log the actual error for debugging (this helps users diagnose API key issues)
+		fmt.Fprintf(os.Stderr, "Anthropic API check failed: %v\n", err)
+		return false
+	}
+	return true
 }
 
 // Summarize generates a summary using Anthropic's Messages API

@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -47,7 +48,12 @@ func (p *OpenAIProvider) Name() string {
 func (p *OpenAIProvider) IsAvailable(ctx context.Context) bool {
 	// Simple check: try to list models (lightweight API call)
 	_, err := p.client.ListModels(ctx)
-	return err == nil
+	if err != nil {
+		// Log the actual error for debugging (this helps users diagnose API key issues)
+		fmt.Fprintf(os.Stderr, "OpenAI API check failed: %v\n", err)
+		return false
+	}
+	return true
 }
 
 // Summarize generates a summary using OpenAI's Chat Completions API
