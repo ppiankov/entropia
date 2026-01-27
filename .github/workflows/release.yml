@@ -66,7 +66,7 @@ jobs:
           prerelease: false
           generate_release_notes: true
           body: |
-            # Entropia v${{ github.ref_name }}
+            # Entropia ${{ github.ref_name }}
 
             **A non-normative tool for detecting entropy, decay, and support gaps in public claims.**
 
