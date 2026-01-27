@@ -70,4 +70,4 @@ The goal of v0.1 is to validate the methodology, not to optimize execution.
 
 ## License
 
-MIT License
+MIT Licens - see [LICENSE](LICENSE)
