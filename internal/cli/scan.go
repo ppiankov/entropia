@@ -51,7 +51,7 @@ func init() {
 	scanCmd.Flags().StringVar(&outMD, "md", "", "output Markdown path (optional)")
 
 	// HTTP flags
-	scanCmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "fetch timeout")
+	scanCmd.Flags().DurationVar(&timeout, "timeout", 2*time.Minute, "overall scan timeout (increase for pages with many evidence links)")
 	scanCmd.Flags().StringVar(&userAgent, "ua", "Entropia/0.1 (+https://github.com/ppiankov/entropia)", "HTTP User-Agent")
 	scanCmd.Flags().Int64Var(&maxBytes, "max-bytes", 2_000_000, "max response bytes to read")
 	scanCmd.Flags().BoolVar(&noCache, "no-cache", false, "disable cache (force fresh fetch)")
