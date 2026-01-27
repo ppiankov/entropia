@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -84,16 +85,23 @@ func (p *OllamaProvider) IsAvailable(ctx context.Context) bool {
 	url := fmt.Sprintf("%s/api/tags", p.baseURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Ollama availability check failed (request creation): %v\n", err)
 		return false
 	}
 
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Ollama availability check failed (connection to %s): %v\n", p.baseURL, err)
 		return false
 	}
 	defer resp.Body.Close()
 
-	return resp.StatusCode == http.StatusOK
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "Ollama availability check failed (HTTP %d from %s)\n", resp.StatusCode, p.baseURL)
+		return false
+	}
+
+	return true
 }
 
 // Summarize generates a summary using Ollama's local models
