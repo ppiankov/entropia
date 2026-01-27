@@ -1,0 +1,7 @@
+{
+  "subject": "Laksa Origin",
+  "index": 63,
+  "confidence": "medium",
+  "conflict": true,
+  "signals": ["competing_claims", "stale_sources", "secondary_source_bias"]
+}
