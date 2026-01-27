@@ -1,0 +1,6 @@
+{
+  "subject": "Wikipedia Common Misconceptions",
+  "index": 55,
+  "confidence": "low-medium",
+  "signals": ["high_entropy", "citation_churn", "weak_support"]
+}

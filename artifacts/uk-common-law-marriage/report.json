@@ -1,0 +1,7 @@
+{
+  "subject": "UK Common-law Marriage",
+  "index": 82,
+  "confidence": "high",
+  "conflict": false,
+  "signals": ["primary_secondary_mismatch", "high_action_risk"]
+}
