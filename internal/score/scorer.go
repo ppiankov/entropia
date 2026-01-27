@@ -193,16 +193,28 @@ func (s *Scorer) calculateFreshness(validation []model.ValidationResult) (int, m
 		severity = model.SeverityWarning
 	}
 
+	// Calculate percentage of sources with freshness data
+	totalSources := len(validation)
+	freshnessPercentage := float64(len(ages)) / float64(totalSources) * 100
+
+	description := fmt.Sprintf("Median age: %.1f years", medianAgeYears)
+	if freshnessPercentage < 50 {
+		description = fmt.Sprintf("Median age: %.1f years (%d/%d sources with Last-Modified)",
+			medianAgeYears, len(ages), totalSources)
+	}
+
 	return score, model.Signal{
 		Type:        model.SignalFreshness,
 		Severity:    severity,
-		Description: fmt.Sprintf("Median age: %.1f years", medianAgeYears),
+		Description: description,
 		Data: map[string]interface{}{
-			"median_age_days":  medianAge,
-			"median_age_years": medianAgeYears,
-			"samples":          len(ages),
-			"score":            score,
-			"formula":          "20 - min(median_age_years * 5, 20)",
+			"median_age_days":       medianAge,
+			"median_age_years":      medianAgeYears,
+			"samples":               len(ages),
+			"total_sources":         totalSources,
+			"freshness_coverage":    freshnessPercentage,
+			"score":                 score,
+			"formula":               "20 - min(median_age_years * 5, 20)",
 		},
 	}
 }
