@@ -530,8 +530,12 @@ Entropia was built to address a gap - systematic, non-normative evaluation of ev
 The following are illustrative applications of Entropia’s methodology.
 They demonstrate evidence support patterns, not factual conclusions.
 
-- Wikipedia article analysis (Laksa origin dispute)
+Entropia has been tested against:
+- Wikipedia articles (historical topics, biographies, scientific concepts)
 - Legal misconception analysis (UK common-law marriage)
-- News article evidence profile (Independent, geopolitical reporting)
+- Legal guidance pages and public regulations
+- News reporting (geopolitics, economics, public policy)
+- Encyclopedic references (Britannica, Investopedia)
+
 
 ---
