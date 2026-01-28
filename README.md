@@ -171,7 +171,9 @@ Entropia **does NOT answer**:
 - Content managers monitoring documentation for link decay
 - Journalists assessing source quality in investigative reporting
 
-### Language Support
+### Current Limitations
+
+**Language Support:**
 
 Entropia currently performs claim extraction using English-language heuristics.
 
@@ -182,7 +184,16 @@ For non-English content:
 
 This behavior is intentional. Entropia does not infer or translate claims implicitly.
 
-Future versions may add language-specific extractors as optional modules.
+**Supported Formats:**
+
+Entropia currently processes HTML pages only.
+
+For PDF documents:
+- Claim and evidence extraction will yield zero results
+- Support Index will show low confidence
+- Use HTML versions of documents when available
+
+Future versions may add PDF parsing and language-specific extractors as optional modules.
 
 ---
 
@@ -428,7 +439,7 @@ make test       # or: go test ./...
 
 ### Project Status
 
-**Current Version:** v0.1.13
+**Current Version:** v0.1.14
 
 **Implemented:**
 - ✅ Core pipeline (fetch → extract → validate → score → render)
