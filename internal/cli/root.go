@@ -42,7 +42,7 @@ var versionCmd = &cobra.Command{
 	Short: "Print version information",
 	Long:  `Display the version number and build information for Entropia.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("entropia v0.1.0")
+		fmt.Println("entropia v0.1.12")
 	},
 }
 

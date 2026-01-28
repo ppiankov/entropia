@@ -428,7 +428,7 @@ make test       # or: go test ./...
 
 ### Project Status
 
-**Current Version:** v0.1.11
+**Current Version:** v0.1.12
 
 **Implemented:**
 - ✅ Core pipeline (fetch → extract → validate → score → render)
