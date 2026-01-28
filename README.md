@@ -69,7 +69,7 @@ entropia scan https://self-signed.example.com --insecure
 
 ---
 
-## 🆕 New in v0.1.7
+## 🔍 Key Features
 
 ### Wikipedia Conflict Detection
 
@@ -428,7 +428,7 @@ make test       # or: go test ./...
 
 ### Project Status
 
-**Current Version:** v0.1.7
+**Current Version:** v0.1.11
 
 **Implemented:**
 - ✅ Core pipeline (fetch → extract → validate → score → render)
