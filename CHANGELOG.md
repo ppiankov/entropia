@@ -5,135 +5,31 @@ All notable changes to Entropia will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2026-01-28
+### Added
+- FIELD_NOTES.md
+
 ## [0.1.8] - 2026-01-28
 
 ### Added
+- Wikipedia edit war detection via API (tracks edits, reverts, edit frequency)
+- Historical entity detection for defunct states (8 entities: Kyivan Rus, USSR, Yugoslavia, etc.)
+- TLS certificate validation (version, expiration, self-signed, domain mismatch)
+- Freshness anomaly signal (flags topics with suspiciously recent sources)
+- New signals: `edit_war`, `historical_entity`, `no_tls`, `expired_certificate`, `self_signed_certificate`, `certificate_mismatch`, `freshness_anomaly`
+- `--insecure` flag to skip TLS verification
+- Test program: `cmd/test-wikipedia-conflicts/main.go`
 
-**Wikipedia Conflict Detection:**
-- Edit war detection via Wikipedia API revision history analysis
-  - Tracks recent edits (last 30 days), revert count, unique editors
-  - Calculates edit frequency (edits/day) and conflict severity (low/medium/high)
-  - Threshold: High conflict if >10 edits/month AND >3 reverts, OR >5 edits/day
-  - Returns transparent diagnostic data (recent_edits, revert_count, unique_editors, edit_frequency)
-- Historical entity anachronism detection
-  - Scans article text for references to defunct states that no longer exist
-  - Database of 8 historical entities: Kyivan Rus (1240), USSR (1991), Yugoslavia (1992), Czechoslovakia (1993), Ottoman Empire (1922), Austria-Hungary (1918), Polish-Lithuanian Commonwealth (1795), Grand Duchy of Lithuania (1795)
-  - Only flags entities that ceased to exist >30 years ago (avoids recent political changes)
-  - Provides context snippets showing where entities are mentioned
-- New signal types: `edit_war`, `historical_entity`
-- Automatic detection on Wikipedia URLs (wikipedia.org domain check)
-- Example: Borscht article detects 4 historical entities (Kyivan Rus, USSR, Polish-Lithuanian Commonwealth, Grand Duchy of Lithuania)
-
-**TLS/SSL Certificate Validation:**
-- Comprehensive certificate information capture during HTTP fetch
-  - TLS version (1.0, 1.1, 1.2, 1.3)
-  - Certificate subject and issuer
-  - Validity dates (NotBefore, NotAfter)
-  - Subject Alternative Names (DNS names covered by cert)
-  - Expired certificate detection (before NotBefore or after NotAfter)
-  - Self-signed certificate detection (issuer == subject)
-  - Domain mismatch detection (cert doesn't cover URL hostname)
-- Four new security signals added to reports:
-  - `no_tls`: Page served over HTTP without encryption [WARNING]
-  - `expired_certificate`: Certificate expired or not yet valid [CRITICAL]
-  - `self_signed_certificate`: Self-signed cert (not verified by CA) [WARNING]
-  - `certificate_mismatch`: Certificate domain doesn't match URL [CRITICAL]
-- New `--insecure` flag to skip TLS verification (for self-signed certs in dev/test)
-- TLS info added to `fetch_meta.tls` field in JSON reports
-
-**Freshness Anomaly Detection:**
-- New signal: `freshness_anomaly` [WARNING]
-- Detects when topics have suspiciously recent sources (all <1 year old)
-- Triggers when: >50 sources with age data + median age <1 year
-- Explanation: "For topics with historical significance, having all sources be very recent suggests ongoing content disputes, edit wars, or frequent revisions rather than stable, established information"
-- Example (Borscht): 860 sources, median age 0.003 years (1 day!) - flags ongoing conflict
-
-**Fixes:**
-- **CRITICAL: Fixed Wikipedia evidence extraction to properly exclude navigation links**
-  - Previously counted 1177+ internal Wikipedia links as "evidence" (Main Page, Portal, Special:, Help:, Talk:, Wikipedia:, etc.)
-  - Added `isWikipediaNavigationLink()` filter to remove UI/meta/navigation pages
-  - Now only external sources and legitimate cross-references count
-  - Example impact: Borscht 1177 → 978 evidence links (removed ~200 navigation links)
-- Added User-Agent header to Wikipedia API requests (required by Wikipedia)
-- Fixed URL encoding for Cyrillic/non-ASCII Wikipedia titles (e.g., "Борщ")
-- Increased default scan timeout from 30s to 2 minutes for large Wikipedia pages
-- Added 30-second timeout for Wikipedia conflict detection to prevent hangs
-- Fixed redundant newline in test program (go vet warning)
-
-**Configuration:**
-- New config option: `http.insecure_tls` (boolean, default: false)
-- Wired InsecureTLS flag through Fetcher to http.Transport.TLSClientConfig
-
-**Testing:**
-- New test program: `cmd/test-wikipedia-conflicts/main.go`
-  - Demonstrates edit war detection on Borscht Wikipedia pages
-  - Demonstrates historical entity detection on sample text
-  - Can be run independently for testing
+### Fixed
+- Wikipedia evidence extraction now excludes navigation links (Main Page, Portal, Special:, Help:, Talk:)
+- URL encoding for Cyrillic Wikipedia titles
+- User-Agent header for Wikipedia API requests
+- go vet warnings
 
 ### Changed
-
-- Wikipedia adapter now passes raw HTML content to DetectWikipediaConflicts() for better text extraction
-- FetchResult now includes TLS information in Meta field
-- Pipeline generates TLS security signals after fetching, before scoring
-- Fetcher now accepts `insecureTLS` parameter to configure TLS verification
-
-### Technical Details
-
-**Edit War Detection Algorithm:**
-```
-High conflict if:
-  (recent_edits > 10 AND revert_count > 3) OR edit_frequency > 5
-Medium conflict if:
-  (recent_edits > 5 AND revert_count > 1) OR edit_frequency > 2
-Low conflict if:
-  revert_count > 0
-```
-
-**Historical Entity Detection:**
-- Searches raw HTML for entity names (primary + aliases)
-- Extracts 50-char context before/after each occurrence
-- Only signals entities extinct >30 years (2026 - end_year > 30)
-
-**TLS Certificate Validation:**
-- Uses `crypto/x509.Certificate.VerifyHostname()` for domain matching
-- Captures leaf certificate from `http.Response.TLS.PeerCertificates[0]`
-- All certificate issues are WARNING or CRITICAL severity (never INFO)
-
-### Rationale
-
-**Why Wikipedia Conflict Detection?**
-As noted by user: "high rate of changes back and forth is a conflict" and "links to non-existent countries is a sign of conflict". Wikipedia edit wars and historical entity anachronisms are strong indicators that content is contested in modern identity/origin disputes.
-
-**Why TLS Certificate Validation?**
-As noted by user: "no certificate or no valid certificate is a bad sign". Certificate issues suggest:
-- Site not actively maintained (expired certs)
-- Misconfiguration (domain mismatch)
-- Lower trust (self-signed, no HTTPS)
-- Forgot to renew (expired but otherwise valid)
-
-All issues are now transparently reported with full diagnostic data.
-
-### Examples
-
-**Wikipedia Conflict Detection on Borscht:**
-```bash
-./entropia scan https://en.wikipedia.org/wiki/Borscht --json report.json
-```
-Signals generated:
-- 4 historical entities detected: Kyivan Rus (786 years ago), USSR (35 years ago), Polish-Lithuanian Commonwealth (231 years ago), Grand Duchy of Lithuania (231 years ago)
-- No edit war detected (5 recent edits, 1 revert = below threshold)
-
-**TLS Validation on HTTP Site:**
-```bash
-./entropia scan http://example.com --json report.json
-```
-Signal generated:
-- WARNING: "Page served over HTTP without encryption"
-
-**Skip TLS Verification:**
-```bash
-./entropia scan https://self-signed.example.com --insecure --json report.json
-```
+- Default scan timeout increased from 30s to 2m
+- Fetcher accepts `insecureTLS` parameter
+- FetchResult includes TLS information in Meta field
 
 ---
 
@@ -269,5 +165,5 @@ Entropia is a **non-normative tool** - it evaluates how well claims are supporte
 
 ---
 
-[0.1.8]: https://github.com/ppiankov/entropia/releases/tag/v0.1.8
+[0.1.9]: https://github.com/ppiankov/entropia/releases/tag/v0.1.9
 [0.1.0]: https://github.com/ppiankov/entropia/releases/tag/v0.1.0
