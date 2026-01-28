@@ -157,13 +157,17 @@ func (a *WikipediaAdapter) ExtractEvidence(doc *html.Node, rawURL string) ([]mod
 					host = parsed.Host
 				}
 
-				evidence = append(evidence, model.Evidence{
-					URL:        resolved,
-					Kind:       model.EvidenceKindExternalLink,
-					Host:       host,
-					IsSameHost: host == baseURL.Host,
-					Text:       a.ExtractText(link),
-				})
+				// Skip Wikipedia's own navigation links (Main Page, Portal, etc.)
+				// Only include actual external sources
+				if host != baseURL.Host {
+					evidence = append(evidence, model.Evidence{
+						URL:        resolved,
+						Kind:       model.EvidenceKindExternalLink,
+						Host:       host,
+						IsSameHost: false,
+						Text:       a.ExtractText(link),
+					})
+				}
 			}
 		}
 	}
@@ -185,13 +189,16 @@ func (a *WikipediaAdapter) ExtractEvidence(doc *html.Node, rawURL string) ([]mod
 					host = parsed.Host
 				}
 
-				evidence = append(evidence, model.Evidence{
-					URL:        resolved,
-					Kind:       model.EvidenceKindExternalLink,
-					Host:       host,
-					IsSameHost: false,
-					Text:       a.ExtractText(link),
-				})
+				// Skip internal Wikipedia links
+				if host != baseURL.Host {
+					evidence = append(evidence, model.Evidence{
+						URL:        resolved,
+						Kind:       model.EvidenceKindExternalLink,
+						Host:       host,
+						IsSameHost: false,
+						Text:       a.ExtractText(link),
+					})
+				}
 			}
 		}
 	}
