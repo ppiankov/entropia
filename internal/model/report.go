@@ -80,6 +80,7 @@ const (
 	SignalExpiredCertificate    SignalType = "expired_certificate"     // TLS certificate expired
 	SignalSelfSignedCertificate SignalType = "self_signed_certificate" // Self-signed TLS certificate
 	SignalCertificateMismatch   SignalType = "certificate_mismatch"    // Certificate domain doesn't match URL
+	SignalFreshnessAnomaly      SignalType = "freshness_anomaly"       // Suspiciously recent sources for historical topic
 )
 
 // SignalSeverity indicates the importance of the signal
