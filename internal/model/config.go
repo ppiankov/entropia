@@ -36,6 +36,7 @@ type HTTPConfig struct {
 	FollowRedirects bool          `json:"follow_redirects" yaml:"follow_redirects"` // Whether to follow redirects
 	MaxRedirects    int           `json:"max_redirects" yaml:"max_redirects"`       // Max redirects to follow
 	MaxBodyBytes    int64         `json:"max_body_bytes" yaml:"max_body_bytes"`     // Max response size
+	InsecureTLS     bool          `json:"insecure_tls" yaml:"insecure_tls"`         // Skip TLS certificate verification
 }
 
 // ConcurrencyConfig contains concurrency settings
