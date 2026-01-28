@@ -167,6 +167,31 @@ They do NOT determine:
 
 ---
 
+## Case Studies
+
+### BorshWars: High-Entropy Cultural Attribution
+
+The Wikipedia article on borscht exhibits unusually high claim volatility around cultural origin attribution. Competing edits introduce and remove origin claims (Ukraine, Russia, Poland, Lithuania) with high frequency.
+
+**Observed characteristics:**
+- Stable evidence volume (978 external links)
+- Median source age: 0.003 years (~1 day)
+- Historical entity references: 4 defunct states (Kyivan Rus, USSR, Polish-Lithuanian Commonwealth, Grand Duchy of Lithuania)
+- Freshness anomaly signal triggered
+- Multiple historical entity signals triggered
+
+**Pattern identified:**
+Culturally contested facts do not converge over time, even with substantial evidence. The article remains in a state of continuous revision rather than reaching editorial consensus.
+
+**Internal classification:** `high_entropy_cultural_claim` / `ongoing_attribution_conflict`
+
+**Generalizability:**
+This pattern may extend to other domains where cultural identity, territorial claims, or historical credit attribution are contested. Topics exhibiting similar characteristics include: borders, treaties, invention origins, language classifications, cuisine origins.
+
+**Note:** Entropia does not determine which claim is correct. It detects the pattern of instability in claim structure and evidence freshness.
+
+---
+
 ## Future Investigation
 
 ### Questions Worth Testing
