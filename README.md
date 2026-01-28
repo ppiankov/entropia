@@ -171,6 +171,19 @@ Entropia **does NOT answer**:
 - Content managers monitoring documentation for link decay
 - Journalists assessing source quality in investigative reporting
 
+### Language Support
+
+Entropia currently performs claim extraction using English-language heuristics.
+
+For non-English content:
+- Evidence links may still be detected and validated
+- Claim extraction may yield zero results
+- Support Index will reflect low confidence due to missing claims
+
+This behavior is intentional. Entropia does not infer or translate claims implicitly.
+
+Future versions may add language-specific extractors as optional modules.
+
 ---
 
 ## 🔍 How It Works
