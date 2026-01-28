@@ -1,6 +1,7 @@
 # Field Notes
 
 Observed patterns from Entropia scans. Not claims about truth, just patterns in how information is presented and supported.
+They are descriptive, not evaluative, and do not assert correctness.
 
 ## Wikipedia Patterns
 
