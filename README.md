@@ -501,4 +501,10 @@ Entropia was built to address a gap - systematic, non-normative evaluation of ev
 - **Issue Tracker**: [GitHub Issues](https://github.com/ppiankov/entropia/issues)
 - **Releases**: [GitHub Releases](https://github.com/ppiankov/entropia/releases)
 
+## Example Analyses
+
+- Wikipedia article analysis (Laksa origin dispute)
+- Legal misconception analysis (UK common-law marriage)
+- News article evidence profile (Independent, geopolitical reporting)
+
 ---
