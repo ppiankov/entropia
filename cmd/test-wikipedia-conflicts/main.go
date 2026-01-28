@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	fmt.Println("=== Wikipedia Conflict Detection Test ===\n")
+	fmt.Println("=== Wikipedia Conflict Detection Test ===")
 
 	// Test URLs with known conflicts
 	testURLs := []string{

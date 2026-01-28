@@ -42,7 +42,7 @@ func NewPipeline(cfg *model.Config) *Pipeline {
 	}
 
 	return &Pipeline{
-		fetcher:        NewFetcher(cfg.HTTP.Timeout, cfg.HTTP.UserAgent, cfg.HTTP.MaxBodyBytes),
+		fetcher:        NewFetcher(cfg.HTTP.Timeout, cfg.HTTP.UserAgent, cfg.HTTP.MaxBodyBytes, cfg.HTTP.InsecureTLS),
 		claimExtractor: extract.NewClaimExtractor(),
 		evidExtractor:  extract.NewEvidenceExtractor(),
 		validator:      validate.NewValidator(10*time.Second, cfg.Concurrency.ValidationWorkers, &cfg.Authority),
@@ -67,6 +67,9 @@ func (p *Pipeline) ScanURL(ctx context.Context, url string) (*ScanResult, error)
 		return nil, fmt.Errorf("fetch: %w", err)
 	}
 
+	// Generate TLS-related signals
+	tlsSignals := p.generateTLSSignals(fetchResult.FinalURL, fetchResult.Meta.TLS)
+
 	// 2. Extract claims
 	claims, err := p.claimExtractor.Extract(fetchResult.HTML)
 	if err != nil {
@@ -87,6 +90,9 @@ func (p *Pipeline) ScanURL(ctx context.Context, url string) (*ScanResult, error)
 
 	// 5. Calculate score
 	scoreResult := p.scorer.Calculate(claims, evidence, validation)
+
+	// Append TLS signals to score
+	scoreResult.Signals = append(scoreResult.Signals, tlsSignals...)
 
 	// 6. Detect Wikipedia-specific conflicts (edit wars, historical entities)
 	if strings.Contains(fetchResult.FinalURL, "wikipedia.org") {
@@ -172,4 +178,72 @@ func (p *Pipeline) RenderReport(report *model.Report, jsonPath string, mdPath st
 	p.renderer.RenderSummary(report)
 
 	return nil
+}
+
+// generateTLSSignals creates signals for TLS/certificate issues
+func (p *Pipeline) generateTLSSignals(url string, tls *model.TLSInfo) []model.Signal {
+	var signals []model.Signal
+
+	if tls == nil {
+		return signals
+	}
+
+	// 1. No TLS (HTTP only)
+	if !tls.Enabled {
+		signals = append(signals, model.Signal{
+			Type:        model.SignalNoTLS,
+			Severity:    model.SeverityWarning,
+			Description: "Page served over HTTP without encryption",
+			Data: map[string]interface{}{
+				"url":         url,
+				"explanation": "HTTP connections are unencrypted and vulnerable to tampering. Evidence from unencrypted sources is less trustworthy.",
+			},
+		})
+		return signals // No other TLS checks needed
+	}
+
+	// 2. Expired certificate
+	if tls.Expired {
+		signals = append(signals, model.Signal{
+			Type:        model.SignalExpiredCertificate,
+			Severity:    model.SeverityCritical,
+			Description: "TLS certificate expired or not yet valid",
+			Data: map[string]interface{}{
+				"subject":     tls.Subject,
+				"not_before":  tls.NotBefore,
+				"not_after":   tls.NotAfter,
+				"explanation": "Expired certificates suggest the site is not actively maintained, raising questions about content freshness.",
+			},
+		})
+	}
+
+	// 3. Self-signed certificate
+	if tls.SelfSigned {
+		signals = append(signals, model.Signal{
+			Type:        model.SignalSelfSignedCertificate,
+			Severity:    model.SeverityWarning,
+			Description: "TLS certificate is self-signed",
+			Data: map[string]interface{}{
+				"issuer":      tls.Issuer,
+				"subject":     tls.Subject,
+				"explanation": "Self-signed certificates cannot be verified by trusted authorities, indicating lower trust.",
+			},
+		})
+	}
+
+	// 4. Domain mismatch
+	if tls.DomainMismatch {
+		signals = append(signals, model.Signal{
+			Type:        model.SignalCertificateMismatch,
+			Severity:    model.SeverityCritical,
+			Description: "TLS certificate domain doesn't match URL",
+			Data: map[string]interface{}{
+				"url":         url,
+				"dns_names":   tls.DNSNames,
+				"explanation": "Certificate issued for a different domain suggests misconfiguration or potential security risk.",
+			},
+		})
+	}
+
+	return signals
 }

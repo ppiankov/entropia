@@ -62,6 +62,49 @@ export OPENAI_API_KEY=sk-...
 entropia scan https://example.com --llm --llm-provider openai
 ```
 
+**Skip TLS verification (for self-signed certificates):**
+```bash
+entropia scan https://self-signed.example.com --insecure
+```
+
+---
+
+## 🆕 New in v0.1.7
+
+### Wikipedia Conflict Detection
+
+Automatically detects contested content on Wikipedia pages:
+
+**Edit War Detection:**
+- Analyzes Wikipedia revision history via API
+- Tracks edit frequency, revert count, unique editors
+- Flags high-conflict articles (>10 edits/month + >3 reverts, OR >5 edits/day)
+- Example: Flags articles with competing national identity claims
+
+**Historical Entity Anachronisms:**
+- Detects references to 8 defunct states: Kyivan Rus (1240), USSR (1991), Yugoslavia (1992), Czechoslovakia (1993), Ottoman Empire (1922), Austria-Hungary (1918), Polish-Lithuanian Commonwealth (1795), Grand Duchy of Lithuania (1795)
+- Only flags entities extinct >30 years (avoids recent political changes)
+- Provides context snippets showing where entities are mentioned
+- Example: Borscht article references 4 historical entities (Kyivan Rus, USSR, Polish-Lithuanian Commonwealth, Grand Duchy of Lithuania)
+
+### TLS/SSL Security Validation
+
+Captures and validates certificate information for all scanned URLs:
+
+**Certificate Information:**
+- TLS version (1.0, 1.1, 1.2, 1.3)
+- Subject, issuer, validity dates
+- Subject Alternative Names (DNS names)
+- Expiration status, self-signed detection, domain mismatch
+
+**Security Signals:**
+- 🔴 **No TLS**: Page served over HTTP (no encryption) - WARNING
+- 🔴 **Expired Certificate**: Certificate expired or not yet valid - CRITICAL
+- ⚠️ **Self-Signed**: Certificate not verified by trusted CA - WARNING
+- 🔴 **Domain Mismatch**: Certificate issued for different domain - CRITICAL
+
+**Use `--insecure` flag** to bypass certificate verification for development/testing.
+
 ---
 
 ## 📚 What Entropia Does
@@ -72,6 +115,8 @@ entropia scan https://example.com --llm --llm-provider openai
 ✅ **Detects conflicts** (competing claims, contradictions)
 ✅ **Scores support quality** (transparent, formula-based: 0-100 scale)
 ✅ **Generates reports** (JSON for automation, Markdown for humans)
+✅ **Wikipedia conflict detection** (edit wars, historical entity anachronisms)
+✅ **TLS/SSL security validation** (expired certs, self-signed, domain mismatch)
 
 ### Non-Normative Philosophy
 
@@ -115,6 +160,11 @@ For each evidence URL, checks:
 - **Accessibility**: HTTP HEAD request to detect 404s, timeouts
 - **Freshness**: `Last-Modified` header to calculate age
 - **Authority**: Domain-based classification (primary/secondary/tertiary tiers)
+- **TLS Security**: Certificate validity, expiration, domain matching
+
+For Wikipedia pages, also detects:
+- **Edit Wars**: High edit frequency and revert patterns via Wikipedia API
+- **Historical Entities**: References to defunct states (Kyivan Rus, USSR, etc.)
 
 **Concurrency:** Validates up to 20 evidence URLs in parallel per scan.
 
@@ -331,9 +381,9 @@ make test       # or: go test ./...
 
 ### Project Status
 
-**Current Version:** v0.1.0 (MVP Release)
+**Current Version:** v0.1.7
 
-**Implemented (Weeks 1-6 Complete):**
+**Implemented:**
 - ✅ Core pipeline (fetch → extract → validate → score → render)
 - ✅ CLI with scan and batch commands
 - ✅ Concurrent evidence validation (20 workers)
@@ -342,11 +392,9 @@ make test       # or: go test ./...
 - ✅ Transparent scoring engine
 - ✅ Multi-layer caching and rate limiting
 - ✅ robots.txt compliance
-
-**In Progress (Week 7):**
-- ⏳ Comprehensive unit tests
-- ⏳ Integration tests
-- ⏳ Enhanced error handling with retries
+- ✅ **Wikipedia conflict detection** (edit wars + historical entities)
+- ✅ **TLS/SSL certificate validation** with security signals
+- ✅ 380+ unit tests with 92%+ coverage
 
 **Roadmap (Post-v0.1):**
 - 🔮 Additional domain adapters (news sites, academic papers, blogs)

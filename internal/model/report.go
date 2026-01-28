@@ -28,6 +28,21 @@ type FetchMeta struct {
 	LastModified string            `json:"last_modified,omitempty"`
 	ETag         string            `json:"etag,omitempty"`
 	Headers      map[string]string `json:"headers,omitempty"`
+	TLS          *TLSInfo          `json:"tls,omitempty"` // TLS/certificate information
+}
+
+// TLSInfo contains TLS/SSL certificate information
+type TLSInfo struct {
+	Enabled        bool     `json:"enabled"`                   // Whether TLS was used
+	Version        string   `json:"version,omitempty"`         // TLS version (e.g., "TLS 1.3")
+	Subject        string   `json:"subject,omitempty"`         // Certificate subject
+	Issuer         string   `json:"issuer,omitempty"`          // Certificate issuer
+	NotBefore      string   `json:"not_before,omitempty"`      // Validity start date
+	NotAfter       string   `json:"not_after,omitempty"`       // Validity end date
+	DNSNames       []string `json:"dns_names,omitempty"`       // Subject Alternative Names
+	Expired        bool     `json:"expired"`                   // Whether certificate is expired
+	SelfSigned     bool     `json:"self_signed"`               // Whether certificate is self-signed
+	DomainMismatch bool     `json:"domain_mismatch,omitempty"` // Whether cert domain doesn't match URL
 }
 
 // Score represents the transparent scoring breakdown
@@ -61,6 +76,10 @@ const (
 	SignalCitationChurn         SignalType = "citation_churn"          // Frequent revisions
 	SignalEditWar               SignalType = "edit_war"                // Wikipedia edit war detected
 	SignalHistoricalEntity      SignalType = "historical_entity"       // Non-existent historical entity referenced
+	SignalNoTLS                 SignalType = "no_tls"                  // Page served over HTTP (no encryption)
+	SignalExpiredCertificate    SignalType = "expired_certificate"     // TLS certificate expired
+	SignalSelfSignedCertificate SignalType = "self_signed_certificate" // Self-signed TLS certificate
+	SignalCertificateMismatch   SignalType = "certificate_mismatch"    // Certificate domain doesn't match URL
 )
 
 // SignalSeverity indicates the importance of the signal
