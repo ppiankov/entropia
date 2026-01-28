@@ -2,6 +2,8 @@ package pipeline
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,10 +22,18 @@ type Fetcher struct {
 }
 
 // NewFetcher creates a new Fetcher with the given configuration
-func NewFetcher(timeout time.Duration, userAgent string, maxBytes int64) *Fetcher {
+func NewFetcher(timeout time.Duration, userAgent string, maxBytes int64, insecureTLS bool) *Fetcher {
+	// Create custom transport with TLS configuration
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: insecureTLS,
+		},
+	}
+
 	return &Fetcher{
 		httpClient: &http.Client{
-			Timeout: timeout,
+			Timeout:   timeout,
+			Transport: transport,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				if len(via) >= 3 {
 					return fmt.Errorf("stopped after 3 redirects")
@@ -76,6 +86,9 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 		}
 	}
 
+	// Capture TLS/certificate information
+	meta.TLS = extractTLSInfo(resp, rawURL)
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("unexpected status: %d %s", resp.StatusCode, resp.Status)
 	}
@@ -124,4 +137,66 @@ func extractSubject(rawURL string) string {
 	}
 
 	return last
+}
+
+// extractTLSInfo extracts TLS/certificate information from the HTTP response
+func extractTLSInfo(resp *http.Response, rawURL string) *model.TLSInfo {
+	// Check if TLS was used
+	if resp.TLS == nil {
+		return &model.TLSInfo{
+			Enabled: false,
+		}
+	}
+
+	tlsInfo := &model.TLSInfo{
+		Enabled: true,
+	}
+
+	// TLS version
+	switch resp.TLS.Version {
+	case tls.VersionTLS10:
+		tlsInfo.Version = "TLS 1.0"
+	case tls.VersionTLS11:
+		tlsInfo.Version = "TLS 1.1"
+	case tls.VersionTLS12:
+		tlsInfo.Version = "TLS 1.2"
+	case tls.VersionTLS13:
+		tlsInfo.Version = "TLS 1.3"
+	default:
+		tlsInfo.Version = fmt.Sprintf("TLS 0x%04X", resp.TLS.Version)
+	}
+
+	// Certificate information (use leaf certificate)
+	if len(resp.TLS.PeerCertificates) > 0 {
+		cert := resp.TLS.PeerCertificates[0]
+
+		tlsInfo.Subject = cert.Subject.String()
+		tlsInfo.Issuer = cert.Issuer.String()
+		tlsInfo.NotBefore = cert.NotBefore.Format("2006-01-02")
+		tlsInfo.NotAfter = cert.NotAfter.Format("2006-01-02")
+		tlsInfo.DNSNames = cert.DNSNames
+
+		// Check if expired
+		now := time.Now()
+		tlsInfo.Expired = now.Before(cert.NotBefore) || now.After(cert.NotAfter)
+
+		// Check if self-signed (issuer == subject)
+		tlsInfo.SelfSigned = cert.Issuer.String() == cert.Subject.String()
+
+		// Check domain mismatch
+		parsedURL, err := url.Parse(rawURL)
+		if err == nil {
+			hostname := parsedURL.Hostname()
+			tlsInfo.DomainMismatch = !certMatchesHostname(cert, hostname)
+		}
+	}
+
+	return tlsInfo
+}
+
+// certMatchesHostname checks if the certificate is valid for the given hostname
+func certMatchesHostname(cert *x509.Certificate, hostname string) bool {
+	// Use the standard library's VerifyHostname method
+	err := cert.VerifyHostname(hostname)
+	return err == nil
 }

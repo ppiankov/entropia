@@ -19,6 +19,7 @@ var (
 	maxBytes    int64
 	noCache     bool
 	noFooter    bool
+	insecureTLS bool
 	llmEnabled  bool
 	llmProvider string
 	llmModel    string
@@ -56,6 +57,7 @@ func init() {
 	scanCmd.Flags().Int64Var(&maxBytes, "max-bytes", 2_000_000, "max response bytes to read")
 	scanCmd.Flags().BoolVar(&noCache, "no-cache", false, "disable cache (force fresh fetch)")
 	scanCmd.Flags().BoolVar(&noFooter, "no-footer", false, "disable footer in Markdown reports")
+	scanCmd.Flags().BoolVar(&insecureTLS, "insecure", false, "skip TLS certificate verification (use for self-signed certs)")
 
 	// LLM flags
 	scanCmd.Flags().BoolVar(&llmEnabled, "llm", false, "enable LLM summary generation")
@@ -80,6 +82,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 	cfg.HTTP.Timeout = timeout
 	cfg.HTTP.UserAgent = userAgent
 	cfg.HTTP.MaxBodyBytes = maxBytes
+	cfg.HTTP.InsecureTLS = insecureTLS
 	cfg.Cache.Enabled = !noCache
 	cfg.Output.Verbose = verbose
 	cfg.Output.IncludeFooter = !noFooter
