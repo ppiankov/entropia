@@ -7,10 +7,12 @@ import (
 	"time"
 
 	"github.com/ppiankov/entropia/internal/extract"
+	"github.com/ppiankov/entropia/internal/extract/adapters"
 	"github.com/ppiankov/entropia/internal/llm"
 	"github.com/ppiankov/entropia/internal/model"
 	"github.com/ppiankov/entropia/internal/score"
 	"github.com/ppiankov/entropia/internal/validate"
+	"golang.org/x/net/html"
 )
 
 // Pipeline orchestrates the complete scan process
@@ -86,7 +88,23 @@ func (p *Pipeline) ScanURL(ctx context.Context, url string) (*ScanResult, error)
 	// 5. Calculate score
 	scoreResult := p.scorer.Calculate(claims, evidence, validation)
 
-	// 6. Build report (without LLM summary yet)
+	// 6. Detect Wikipedia-specific conflicts (edit wars, historical entities)
+	if strings.Contains(fetchResult.FinalURL, "wikipedia.org") {
+		doc, err := html.Parse(strings.NewReader(fetchResult.HTML))
+		if err == nil {
+			adapter := adapters.NewWikipediaAdapter()
+
+			// Create a separate context with shorter timeout for conflict detection
+			conflictCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
+
+			conflictSignals := adapter.DetectWikipediaConflicts(conflictCtx, fetchResult.FinalURL, fetchResult.HTML, doc)
+			// Append conflict signals to score
+			scoreResult.Signals = append(scoreResult.Signals, conflictSignals...)
+		}
+	}
+
+	// 7. Build report (without LLM summary yet)
 	report := &model.Report{
 		Subject:    fetchResult.Subject,
 		SourceURL:  fetchResult.FinalURL,
@@ -99,7 +117,7 @@ func (p *Pipeline) ScanURL(ctx context.Context, url string) (*ScanResult, error)
 		Principles: model.DefaultPrinciples(),
 	}
 
-	// 7. Generate LLM summary if enabled (AFTER scoring, never affects score)
+	// 8. Generate LLM summary if enabled (AFTER scoring, never affects score)
 	if p.summarizer != nil && p.summarizer.IsEnabled() {
 		llmSummary, err := p.summarizer.GenerateSummary(ctx, *report)
 		if err != nil {

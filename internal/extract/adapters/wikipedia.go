@@ -1,6 +1,7 @@
 package adapters
 
 import (
+	"context"
 	"net/url"
 	"strings"
 
@@ -360,4 +361,68 @@ func (a *WikipediaAdapter) dedupeEvidence(evidence []model.Evidence) []model.Evi
 	}
 
 	return unique
+}
+
+// DetectWikipediaConflicts checks for Wikipedia-specific conflict indicators
+// Returns signals for edit wars and historical entity anachronisms
+// Takes both the HTML content string and parsed document
+func (a *WikipediaAdapter) DetectWikipediaConflicts(ctx context.Context, rawURL string, htmlContent string, doc *html.Node) []model.Signal {
+	var signals []model.Signal
+
+	// 1. Check for edit wars (high edit frequency / reverts)
+	editWar, err := DetectEditWar(ctx, rawURL)
+	if err == nil && editWar.IsHighConflict {
+		severity := model.SeverityWarning
+		if editWar.ConflictSeverity == "high" {
+			severity = model.SeverityCritical
+		}
+
+		signals = append(signals, model.Signal{
+			Type:        model.SignalEditWar,
+			Severity:    severity,
+			Description: "Edit war detected: frequent revisions and reverts indicate contested content",
+			Data: map[string]interface{}{
+				"recent_edits":      editWar.RecentEdits,
+				"revert_count":      editWar.RevertCount,
+				"unique_editors":    editWar.UniqueEditors,
+				"edit_frequency":    editWar.EditFrequency,
+				"conflict_severity": editWar.ConflictSeverity,
+				"last_edit":         editWar.LastEditTime.Format("2006-01-02"),
+				"explanation":       "High edit frequency and reverts suggest this content is disputed",
+			},
+		})
+	}
+
+	// 2. Check for historical entity anachronisms
+	// Search in the raw HTML content for historical entity names
+	historicalConflicts := DetectHistoricalEntities(htmlContent)
+
+	for _, hc := range historicalConflicts {
+		// Only flag if entity has been gone for >30 years (avoids recent political entities)
+		yearsSinceEnd := 2026 - hc.Entity.EndYear
+		if yearsSinceEnd > 30 {
+			signalData := map[string]interface{}{
+				"entity":        hc.Entity.Name,
+				"ended":         hc.Entity.EndYear,
+				"years_ago":     yearsSinceEnd,
+				"occurrences":   hc.Occurrences,
+				"description":   hc.Entity.Description,
+				"explanation":   "Attributing origins to historical entities that no longer exist may indicate contested modern identity claims",
+			}
+
+			// Add example context if available
+			if len(hc.Context) > 0 {
+				signalData["example"] = hc.Context[0]
+			}
+
+			signals = append(signals, model.Signal{
+				Type:        model.SignalHistoricalEntity,
+				Severity:    model.SeverityWarning,
+				Description: "Historical entity anachronism: article references non-existent state in origin claims",
+				Data:        signalData,
+			})
+		}
+	}
+
+	return signals
 }

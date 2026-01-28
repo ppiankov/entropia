@@ -59,6 +59,8 @@ const (
 	SignalSecondarySourceBias   SignalType = "secondary_source_bias"   // Lack of primary sources
 	SignalHighEntropy           SignalType = "high_entropy"            // High claim density, low support
 	SignalCitationChurn         SignalType = "citation_churn"          // Frequent revisions
+	SignalEditWar               SignalType = "edit_war"                // Wikipedia edit war detected
+	SignalHistoricalEntity      SignalType = "historical_entity"       // Non-existent historical entity referenced
 )
 
 // SignalSeverity indicates the importance of the signal
