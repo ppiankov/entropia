@@ -105,6 +105,39 @@ Captures and validates certificate information for all scanned URLs:
 
 **Use `--insecure` flag** to bypass certificate verification for development/testing.
 
+### Freshness Anomaly Detection
+
+Detects when topics have suspiciously recent sources:
+
+**When It Triggers:**
+- More than 50 sources with age data
+- Median age less than 1 year
+- Topic likely has historical significance
+
+**What It Means:**
+For historical topics (like a 700-year-old soup), having ALL sources be very recent (<1 year) suggests:
+- Ongoing content disputes
+- Edit wars or frequent revisions
+- Unstable information rather than established facts
+
+**Example (Borscht):**
+- 860 sources with age data
+- Median age: 0.003 years (about 1 day!)
+- Signal: ⚠️ "Suspiciously recent sources: all evidence very new despite topic likely being historical"
+
+### Improved Evidence Quality
+
+**Wikipedia Navigation Link Filtering:**
+Previously, Wikipedia UI/navigation links were incorrectly counted as evidence:
+- Main Page, Portal, Special: pages, Help: pages
+- Talk pages, edit/history links
+- Self-references
+
+Now properly filtered:
+- Example: Borscht 1177 → 978 evidence links (removed ~200 navigation links)
+- Only external sources and legitimate cross-references count
+- More accurate evidence-to-claim ratios
+
 ---
 
 ## 📚 What Entropia Does
@@ -117,6 +150,7 @@ Captures and validates certificate information for all scanned URLs:
 ✅ **Generates reports** (JSON for automation, Markdown for humans)
 ✅ **Wikipedia conflict detection** (edit wars, historical entity anachronisms)
 ✅ **TLS/SSL security validation** (expired certs, self-signed, domain mismatch)
+✅ **Freshness anomaly detection** (suspiciously recent sources for historical topics)
 
 ### Non-Normative Philosophy
 

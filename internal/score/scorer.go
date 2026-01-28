@@ -43,6 +43,12 @@ func (s *Scorer) Calculate(claims []model.Claim, evidence []model.Evidence, vali
 		signals = append(signals, conflictSignal)
 	}
 
+	// 6. Freshness Anomaly Detection
+	freshnessAnomalySignal := s.detectFreshnessAnomaly(validation, len(evidence))
+	if freshnessAnomalySignal.Type != "" {
+		signals = append(signals, freshnessAnomalySignal)
+	}
+
 	// Calculate total score
 	totalScore := coverageScore + authorityScore + freshnessScore + accessScore
 
@@ -297,6 +303,46 @@ func (s *Scorer) detectConflict(claims []model.Claim) (bool, model.Signal) {
 	}
 
 	return false, model.Signal{}
+}
+
+// detectFreshnessAnomaly detects when sources are suspiciously recent for a topic
+// This can indicate ongoing content disputes or constant editing wars
+func (s *Scorer) detectFreshnessAnomaly(validation []model.ValidationResult, totalEvidence int) model.Signal {
+	// Only check if we have substantial evidence with freshness data
+	var ages []int
+	for _, v := range validation {
+		if v.Age != nil {
+			ages = append(ages, *v.Age)
+		}
+	}
+
+	// Need at least 20 sources with freshness data to make this assessment
+	if len(ages) < 20 {
+		return model.Signal{} // Return empty signal
+	}
+
+	// Calculate median age
+	sort.Ints(ages)
+	medianAge := ages[len(ages)/2]
+	medianAgeYears := float64(medianAge) / 365.0
+
+	// Anomaly: Many sources but all very recent (<1 year)
+	// This suggests ongoing disputes or frequent content changes
+	if medianAgeYears < 1.0 && len(ages) > 50 {
+		return model.Signal{
+			Type:        model.SignalFreshnessAnomaly,
+			Severity:    model.SeverityWarning,
+			Description: "Suspiciously recent sources: all evidence very new despite topic likely being historical",
+			Data: map[string]interface{}{
+				"median_age_years": medianAgeYears,
+				"sources_with_age": len(ages),
+				"total_evidence":   totalEvidence,
+				"explanation":      "For topics with historical significance, having all sources be very recent (<1 year) suggests ongoing content disputes, frequent revisions, or edit wars rather than stable, established information",
+			},
+		}
+	}
+
+	return model.Signal{} // No anomaly detected
 }
 
 // determineConfidence determines the confidence level based on the score

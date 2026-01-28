@@ -49,7 +49,7 @@ func (e *EvidenceExtractor) Extract(htmlContent string, sourceURL string) ([]mod
 
 			if href != "" {
 				resolvedURL := resolveURL(baseURL, href)
-				if resolvedURL != "" {
+				if resolvedURL != "" && !isWikipediaNavigationLink(resolvedURL, baseURL.String()) {
 					parsed, _ := url.Parse(resolvedURL)
 					host := ""
 					if parsed != nil {
@@ -126,6 +126,58 @@ func classifyEvidenceKind(href string, n *html.Node) model.EvidenceKind {
 	}
 
 	return model.EvidenceKindExternalLink
+}
+
+// isWikipediaNavigationLink checks if a URL is a Wikipedia UI/navigation link
+func isWikipediaNavigationLink(resolvedURL, sourceURL string) bool {
+	// Only apply to Wikipedia pages
+	if !strings.Contains(sourceURL, "wikipedia.org") {
+		return false
+	}
+
+	parsedURL, err := url.Parse(resolvedURL)
+	if err != nil {
+		return false
+	}
+
+	// Skip if not same Wikipedia domain
+	parsedSource, err := url.Parse(sourceURL)
+	if err != nil {
+		return false
+	}
+	if parsedURL.Host != parsedSource.Host {
+		return false // External link, keep it
+	}
+
+	path := parsedURL.Path
+
+	// Filter Wikipedia navigation, UI, and meta pages
+	navigationPrefixes := []string{
+		"/wiki/Main_Page",
+		"/wiki/Wikipedia:",
+		"/wiki/Portal:",
+		"/wiki/Special:",
+		"/wiki/Help:",
+		"/wiki/Talk:",
+		"/wiki/File:",
+		"/wiki/Template:",
+		"/wiki/Template_talk:",
+		"/wiki/Category:",
+		"/w/index.php", // Edit/history links
+	}
+
+	for _, prefix := range navigationPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+
+	// Also filter if it's the same page as the source (self-reference)
+	if parsedURL.Path == parsedSource.Path {
+		return true
+	}
+
+	return false
 }
 
 // dedupeEvidence removes duplicate evidence links

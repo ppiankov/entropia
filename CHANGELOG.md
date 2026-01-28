@@ -5,7 +5,7 @@ All notable changes to Entropia will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.7] - 2026-01-28
+## [0.1.8] - 2026-01-28
 
 ### Added
 
@@ -41,14 +41,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `--insecure` flag to skip TLS verification (for self-signed certs in dev/test)
 - TLS info added to `fetch_meta.tls` field in JSON reports
 
+**Freshness Anomaly Detection:**
+- New signal: `freshness_anomaly` [WARNING]
+- Detects when topics have suspiciously recent sources (all <1 year old)
+- Triggers when: >50 sources with age data + median age <1 year
+- Explanation: "For topics with historical significance, having all sources be very recent suggests ongoing content disputes, edit wars, or frequent revisions rather than stable, established information"
+- Example (Borscht): 860 sources, median age 0.003 years (1 day!) - flags ongoing conflict
+
 **Fixes:**
-- Fixed Wikipedia evidence extraction to exclude navigation links (Main Page, Portal, etc.)
-  - Previously counted 1177+ internal Wikipedia links as "evidence"
-  - Now only external sources count (e.g., Borscht: 1176 evidence links → mostly legitimate external sources)
+- **CRITICAL: Fixed Wikipedia evidence extraction to properly exclude navigation links**
+  - Previously counted 1177+ internal Wikipedia links as "evidence" (Main Page, Portal, Special:, Help:, Talk:, Wikipedia:, etc.)
+  - Added `isWikipediaNavigationLink()` filter to remove UI/meta/navigation pages
+  - Now only external sources and legitimate cross-references count
+  - Example impact: Borscht 1177 → 978 evidence links (removed ~200 navigation links)
 - Added User-Agent header to Wikipedia API requests (required by Wikipedia)
 - Fixed URL encoding for Cyrillic/non-ASCII Wikipedia titles (e.g., "Борщ")
 - Increased default scan timeout from 30s to 2 minutes for large Wikipedia pages
 - Added 30-second timeout for Wikipedia conflict detection to prevent hangs
+- Fixed redundant newline in test program (go vet warning)
 
 **Configuration:**
 - New config option: `http.insecure_tls` (boolean, default: false)
@@ -259,5 +269,5 @@ Entropia is a **non-normative tool** - it evaluates how well claims are supporte
 
 ---
 
-[0.1.7]: https://github.com/ppiankov/entropia/releases/tag/v0.1.7
+[0.1.8]: https://github.com/ppiankov/entropia/releases/tag/v0.1.8
 [0.1.0]: https://github.com/ppiankov/entropia/releases/tag/v0.1.0
