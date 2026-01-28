@@ -44,6 +44,7 @@ test-*.md
 !LICENSE
 !CHANGELOG.md
 !CONTRIBUTING.md
+!FIELD_NOTES.md
 
 # OS
 .DS_Store
