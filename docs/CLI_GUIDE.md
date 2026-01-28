@@ -447,6 +447,15 @@ entropia batch urls.txt --concurrency 5
 ulimit -n 4096
 ```
 
+### "unexpected status: 403 403 Forbidden"
+
+**Cause**: Some sites block bot user agents.
+
+**Solution**: Use a browser user agent:
+```bash
+entropia scan https://example.com --ua "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+```
+
 ### "robots.txt disallows fetching"
 
 **Solution**: Respect robots.txt (tool won't bypass it). Check if you have permission to scan the site.
