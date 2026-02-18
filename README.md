@@ -3,7 +3,7 @@
 **A non-normative tool for detecting entropy, decay, and support gaps in public claims.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev/)
+[![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev/)
 
 Entropia evaluates how well claims are supported by available, current, and authoritative sources. It highlights conflicts, gaps, and drift between claims and evidence.
 
@@ -422,7 +422,7 @@ Entropia targets an adjacent problem space to fact-checking and link checking: *
 ### Build from Source
 
 **Requirements:**
-- Go 1.22 or later
+- Go 1.25 or later
 - Make (optional, for convenience)
 
 **Build:**

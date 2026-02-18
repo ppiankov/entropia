@@ -75,6 +75,11 @@ type Config struct {
 
 	// MaxTokens for response generation
 	MaxTokens int
+
+	// Proxy settings
+	HTTPProxy  string
+	HTTPSProxy string
+	NoProxy    string
 }
 
 // DefaultConfig returns sensible defaults

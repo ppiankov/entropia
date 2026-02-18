@@ -127,12 +127,16 @@ http:
   follow_redirects: true      # Follow HTTP redirects
   max_redirects: 3            # Maximum redirect hops
   max_body_bytes: 2000000     # Max response size (2MB)
+  http_proxy: ""              # HTTP proxy URL
+  https_proxy: ""             # HTTPS proxy URL
+  no_proxy: ""                # Comma-separated hosts to bypass proxy
 ```
 
 **Use Cases:**
 - **Slow sites**: Increase `timeout` to `60s` or more
 - **Large pages**: Increase `max_body_bytes` to `10000000` (10MB)
 - **Custom identification**: Set `user_agent` to include your contact info
+- **Corporate networks**: Set `http_proxy` and `https_proxy` for proxy routing
 
 ### Concurrency Settings
 
@@ -613,11 +617,48 @@ http:
 
 ### Proxy Support
 
-```yaml
-# Not yet supported - planned feature
-http:
-  proxy: http://proxy.example.com:8080
+Entropia supports HTTP proxy configuration for all network operations. This is essential for corporate environments where direct internet access is blocked.
+
+#### Environment Variables
+
+Entropia automatically respects standard proxy environment variables:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `HTTP_PROXY` | Proxy for HTTP requests | `http://proxy.example.com:8080` |
+| `HTTPS_PROXY` | Proxy for HTTPS requests | `http://proxy.example.com:8080` |
+| `NO_PROXY` | Comma-separated hosts to bypass | `localhost,127.0.0.1,.internal.company.com` |
+
+**Usage:**
+```bash
+export HTTP_PROXY=http://proxy.example.com:8080
+export HTTPS_PROXY=http://proxy.example.com:8080
+export NO_PROXY=localhost,127.0.0.1
+entropia scan https://example.com
 ```
+
+#### CLI Flags
+
+Override environment variables with CLI flags:
+
+```bash
+entropia scan https://example.com --http-proxy http://proxy.example.com:8080 --https-proxy http://proxy.example.com:8080
+```
+
+#### Configuration File
+
+You can also configure proxies in your config file:
+
+```yaml
+http:
+  http_proxy: http://proxy.example.com:8080
+  https_proxy: http://proxy.example.com:8080
+  no_proxy: localhost,127.0.0.1,.internal.company.com
+```
+
+**Priority:** CLI flags > environment variables > config file > defaults
+
+**Note:** When both `HTTP_PROXY` and `--http-proxy` are set, the CLI flag takes precedence.
 
 ---
 

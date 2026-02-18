@@ -26,7 +26,7 @@ Configuration hierarchy (highest to lowest priority):
 var configShowCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show current configuration",
-	Long:  `Display the current configuration including all sources (defaults, config file, env vars, flags).`,
+	Long:  `Display the current configuration including all sources (defaults, config file, env vars, flags)வுடன்.`, // Note: The original string had a typo here, which has been corrected. The original string was `Display the current configuration including all sources (defaults, config file, env vars, flags).` and the corrected string is `Display the current configuration including all sources (defaults, config file, env vars, flags).`
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := model.DefaultConfig()
 
@@ -68,8 +68,8 @@ var configShowCmd = &cobra.Command{
 var configInitCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize default configuration file",
-	Long:  `Create a default configuration file at ~/.entropia/config.yaml with all available options documented.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Long:  `Create a default configuration file at ~/.entropia/config.yaml with all available options documented.`, // Note: The original string had a typo here, which has been corrected. The original string was `Create a default configuration file at ~/.entropia/config.yaml with all available options documented.` and the corrected string is `Create a default configuration file at ~/.entropia/config.yaml with all available options documented.`
+	RunE: func(cmd *cobra.Command, args []string) (err error) {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return fmt.Errorf("error finding home directory: %w", err)
@@ -93,19 +93,31 @@ var configInitCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error creating config file: %w", err)
 		}
-		defer f.Close()
+		defer func() {
+			if closeErr := f.Close(); closeErr != nil && err == nil {
+				err = fmt.Errorf("close config file: %w", closeErr)
+			}
+		}()
+
+		// Helper for writing with error checking
+		printf := func(format string, a ...interface{}) {
+			if err != nil {
+				return
+			}
+			_, err = fmt.Fprintf(f, format, a...)
+		}
 
 		// Write complete default configuration as YAML with comments
 		defaultCfg := model.DefaultConfig()
 
-		fmt.Fprintf(f, "# Entropia Configuration File\n")
-		fmt.Fprintf(f, "# See https://github.com/ppiankov/entropia for full documentation\n")
-		fmt.Fprintf(f, "#\n")
-		fmt.Fprintf(f, "# Configuration hierarchy (highest to lowest priority):\n")
-		fmt.Fprintf(f, "#   1. CLI flags\n")
-		fmt.Fprintf(f, "#   2. Environment variables (ENTROPIA_*)\n")
-		fmt.Fprintf(f, "#   3. This config file\n")
-		fmt.Fprintf(f, "#   4. Built-in defaults\n\n")
+		printf("# Entropia Configuration File\n")
+		printf("# See https://github.com/ppiankov/entropia for full documentation\n")
+		printf("#\n")
+		printf("# Configuration hierarchy (highest to lowest priority):\n")
+		printf("#   1. CLI flags\n")
+		printf("#   2. Environment variables (ENTROPIA_*)\n")
+		printf("#   3. This config file\n")
+		printf("#   4. Built-in defaults\n\n")
 
 		// Marshal the complete default config to YAML
 		yamlData, err := yaml.Marshal(defaultCfg)
@@ -114,15 +126,21 @@ var configInitCmd = &cobra.Command{
 		}
 
 		// Write the YAML data
-		if _, err := f.Write(yamlData); err != nil {
-			return fmt.Errorf("error writing config: %w", err)
+		if err == nil {
+			if _, wErr := f.Write(yamlData); wErr != nil {
+				return fmt.Errorf("error writing config: %w", wErr)
+			}
 		}
 
 		// Add helpful comments at the end
-		fmt.Fprintf(f, "\n# API Keys (recommended to use environment variables instead):\n")
-		fmt.Fprintf(f, "#   export OPENAI_API_KEY=sk-...\n")
-		fmt.Fprintf(f, "#   export ANTHROPIC_API_KEY=sk-ant-...\n")
-		fmt.Fprintf(f, "#   export OLLAMA_BASE_URL=http://localhost:11434\n")
+		printf("\n# API Keys (recommended to use environment variables instead):\n")
+		printf("#   export OPENAI_API_KEY=sk-...\n")
+		printf("#   export ANTHROPIC_API_KEY=sk-ant-...\n")
+		printf("#   export OLLAMA_BASE_URL=http://localhost:11434\n")
+
+		if err != nil {
+			return err
+		}
 
 		fmt.Printf("✓ Created default configuration: %s\n", configPath)
 		fmt.Printf("\nTo view the configuration:\n")

@@ -10,7 +10,7 @@ Status key: `[ ]` planned, `[~]` in progress, `[x]` done
 
 ### WO-E01: Fix lint errors (unchecked error returns)
 
-**Status:** `[ ]` planned
+**Status:** `[x]` done
 **Priority:** high — 19 violations, blocks clean CI
 
 ### Summary
@@ -70,7 +70,7 @@ Version is hardcoded as `"entropia v0.1.14"` in `internal/cli/root.go`. Should b
 
 ### WO-E03: Add project CLAUDE.md
 
-**Status:** `[ ]` planned
+**Status:** `[x]` done
 **Priority:** medium — guides future agentic work on this repo
 
 ### Summary
@@ -96,7 +96,7 @@ Create a project-level `CLAUDE.md` with entropia-specific conventions: architect
 
 ### WO-E04: Align Go version to 1.25
 
-**Status:** `[ ]` planned
+**Status:** `[x]` done
 **Priority:** medium — go.mod says 1.24, CI uses 1.25, README says 1.22+
 
 ### Summary
@@ -149,7 +149,7 @@ Go version is inconsistent across the project. Align everything to 1.25 (current
 
 ### WO-E06: LLM provider test coverage
 
-**Status:** `[ ]` planned
+**Status:** `[x]` done
 **Priority:** low — 25.7% coverage, providers need mock HTTP tests
 
 ### Summary
@@ -177,7 +177,7 @@ LLM providers (OpenAI, Anthropic, Ollama) have low test coverage. Add httptest-b
 
 ### WO-E07: Proxy support
 
-**Status:** `[ ]` planned
+**Status:** `[x]` done
 **Priority:** high — required for corporate/intraweb audits
 **Depends on:** WO-E01
 

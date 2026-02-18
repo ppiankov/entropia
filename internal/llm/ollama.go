@@ -7,10 +7,27 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 )
+
+func newOllamaProxyFunc(httpProxy, httpsProxy, noProxy string) func(*http.Request) (*url.URL, error) {
+	if httpProxy == "" && httpsProxy == "" {
+		return http.ProxyFromEnvironment
+	}
+
+	return func(req *http.Request) (*url.URL, error) {
+		if req.URL.Scheme == "https" && httpsProxy != "" {
+			return url.Parse(httpsProxy)
+		}
+		if httpProxy != "" {
+			return url.Parse(httpProxy)
+		}
+		return http.ProxyFromEnvironment(req)
+	}
+}
 
 // OllamaProvider implements the Provider interface for Ollama local models
 type OllamaProvider struct {
@@ -21,10 +38,10 @@ type OllamaProvider struct {
 
 // Ollama API structures
 type ollamaRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
-	System string `json:"system,omitempty"`
+	Model   string        `json:"model"`
+	Prompt  string        `json:"prompt"`
+	Stream  bool          `json:"stream"`
+	System  string        `json:"system,omitempty"`
 	Options ollamaOptions `json:"options,omitempty"`
 }
 
@@ -65,10 +82,15 @@ func NewOllamaProvider(config Config) (*OllamaProvider, error) {
 		timeout = 60 * time.Second // Ollama can be slower for local models
 	}
 
+	proxyFunc := newOllamaProxyFunc(config.HTTPProxy, config.HTTPSProxy, config.NoProxy)
+
 	return &OllamaProvider{
 		baseURL: strings.TrimSuffix(baseURL, "/"),
 		httpClient: &http.Client{
 			Timeout: timeout,
+			Transport: &http.Transport{
+				Proxy: proxyFunc,
+			},
 		},
 		config: config,
 	}, nil
@@ -94,7 +116,7 @@ func (p *OllamaProvider) IsAvailable(ctx context.Context) bool {
 		fmt.Fprintf(os.Stderr, "Ollama availability check failed (connection to %s): %v\n", p.baseURL, err)
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Fprintf(os.Stderr, "Ollama availability check failed (HTTP %d from %s)\n", resp.StatusCode, p.baseURL)
@@ -118,7 +140,7 @@ func (p *OllamaProvider) Summarize(ctx context.Context, req SummarizeRequest) (*
 		model = p.config.Model
 	}
 	if model == "" {
-		return nil, fmt.Errorf("Ollama model must be specified (e.g., llama3.1:8b, mistral)")
+		return nil, fmt.Errorf("ollama model must be specified (e.g., llama3.1:8b, mistral)")
 	}
 
 	// Determine max tokens
@@ -145,7 +167,7 @@ func (p *OllamaProvider) Summarize(ctx context.Context, req SummarizeRequest) (*
 	// Make API call
 	resp, err := p.makeRequest(ctx, apiReq)
 	if err != nil {
-		return nil, fmt.Errorf("Ollama API error: %w", err)
+		return nil, fmt.Errorf("ollama API error: %w", err)
 	}
 
 	summary := strings.TrimSpace(resp.Response)
@@ -200,7 +222,7 @@ func (p *OllamaProvider) makeRequest(ctx context.Context, apiReq ollamaRequest) 
 	if err != nil {
 		return nil, fmt.Errorf("execute request: %w", err)
 	}
-	defer httpResp.Body.Close()
+	defer func() { _ = httpResp.Body.Close() }()
 
 	// Read response body
 	respBody, err := io.ReadAll(httpResp.Body)
