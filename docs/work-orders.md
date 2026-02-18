@@ -43,7 +43,7 @@ golangci-lint reports 19 errors, all unchecked error returns. Fix every one. Mos
 
 ### WO-E02: Use LDFLAGS for version injection
 
-**Status:** `[ ]` planned
+**Status:** `[x]` done
 **Priority:** high — version is hardcoded, violates project standards
 
 ### Summary
@@ -123,7 +123,7 @@ Go version is inconsistent across the project. Align everything to 1.25 (current
 
 ### WO-E05: Worker package test coverage
 
-**Status:** `[ ]` planned
+**Status:** `[x]` done
 **Priority:** medium — 0% coverage on concurrency primitives
 
 ### Summary
