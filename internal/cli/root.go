@@ -11,6 +11,8 @@ import (
 var (
 	cfgFile string
 	verbose bool
+	Version = "dev"
+	Commit  = "none"
 )
 
 // rootCmd represents the base command
@@ -42,7 +44,7 @@ var versionCmd = &cobra.Command{
 	Short: "Print version information",
 	Long:  `Display the version number and build information for Entropia.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("entropia v0.1.14")
+		fmt.Printf("entropia %s (%s)\n", Version, Commit)
 	},
 }
 

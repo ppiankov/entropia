@@ -4,6 +4,10 @@ BINARY=entropia
 BUILD_DIR=bin
 MAIN_PATH=./cmd/entropia
 
+VERSION_NUM := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
+LDFLAGS := -X github.com/ppiankov/entropia/internal/cli.Version=$(VERSION_NUM) -X github.com/ppiankov/entropia/internal/cli.Commit=$(COMMIT)
+
 help: ## Show this help message
 	@echo 'Usage: make [target]'
 	@echo ''
@@ -11,9 +15,9 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 build: ## Build the binary
-	@echo "Building $(BINARY)..."
+	@echo "Building $(BINARY) $(VERSION_NUM) ($(COMMIT))..."
 	@mkdir -p $(BUILD_DIR)
-	go build -o $(BUILD_DIR)/$(BINARY) $(MAIN_PATH)
+	go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY) $(MAIN_PATH)
 
 install: ## Install dependencies
 	@echo "Installing dependencies..."
