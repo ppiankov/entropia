@@ -21,13 +21,32 @@ type Fetcher struct {
 	maxBytes   int64
 }
 
+// NewProxyFunc creates a proxy function based on configuration
+func NewProxyFunc(httpProxy, httpsProxy, noProxy string) func(*http.Request) (*url.URL, error) {
+	if httpProxy == "" && httpsProxy == "" {
+		return http.ProxyFromEnvironment
+	}
+
+	return func(req *http.Request) (*url.URL, error) {
+		if req.URL.Scheme == "https" && httpsProxy != "" {
+			return url.Parse(httpsProxy)
+		}
+		if httpProxy != "" {
+			return url.Parse(httpProxy)
+		}
+		return http.ProxyFromEnvironment(req)
+	}
+}
+
 // NewFetcher creates a new Fetcher with the given configuration
-func NewFetcher(timeout time.Duration, userAgent string, maxBytes int64, insecureTLS bool) *Fetcher {
-	// Create custom transport with TLS configuration
+func NewFetcher(timeout time.Duration, userAgent string, maxBytes int64, insecureTLS bool, httpProxy, httpsProxy, noProxy string) *Fetcher {
+	proxyFunc := NewProxyFunc(httpProxy, httpsProxy, noProxy)
+
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: insecureTLS,
 		},
+		Proxy: proxyFunc,
 	}
 
 	return &Fetcher{
@@ -69,7 +88,7 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 	if err != nil {
 		return nil, fmt.Errorf("fetch: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	meta := model.FetchMeta{
 		StatusCode:   resp.StatusCode,

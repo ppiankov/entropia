@@ -21,7 +21,7 @@ func TestValidator_ValidateSingle_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	validator := NewValidator(5*time.Second, 20, nil)
+	validator := NewValidator(5*time.Second, 20, nil, "", "", "")
 	evidence := model.Evidence{
 		URL:  server.URL,
 		Kind: model.EvidenceKindExternalLink,
@@ -52,7 +52,7 @@ func TestValidator_ValidateSingle_404(t *testing.T) {
 	}))
 	defer server.Close()
 
-	validator := NewValidator(5*time.Second, 20, nil)
+	validator := NewValidator(5*time.Second, 20, nil, "", "", "")
 	evidence := model.Evidence{URL: server.URL}
 
 	result := validator.validateSingle(context.Background(), evidence)
@@ -81,7 +81,7 @@ func TestValidator_ValidateSingle_Redirect(t *testing.T) {
 	}))
 	defer redirectServer.Close()
 
-	validator := NewValidator(5*time.Second, 20, nil)
+	validator := NewValidator(5*time.Second, 20, nil, "", "", "")
 	evidence := model.Evidence{URL: redirectServer.URL}
 
 	result := validator.validateSingle(context.Background(), evidence)
@@ -134,7 +134,7 @@ func TestValidator_ValidateSingle_Staleness(t *testing.T) {
 			}))
 			defer server.Close()
 
-			validator := NewValidator(5*time.Second, 20, nil)
+			validator := NewValidator(5*time.Second, 20, nil, "", "", "")
 			evidence := model.Evidence{URL: server.URL}
 
 			result := validator.validateSingle(context.Background(), evidence)
@@ -175,7 +175,7 @@ func TestValidator_Validate_Concurrency(t *testing.T) {
 		}
 	}
 
-	validator := NewValidator(5*time.Second, 20, nil)
+	validator := NewValidator(5*time.Second, 20, nil, "", "", "")
 
 	start := time.Now()
 	results, err := validator.Validate(context.Background(), evidence)
@@ -204,7 +204,7 @@ func TestValidator_Validate_Concurrency(t *testing.T) {
 }
 
 func TestValidator_Validate_EmptyEvidence(t *testing.T) {
-	validator := NewValidator(5*time.Second, 20, nil)
+	validator := NewValidator(5*time.Second, 20, nil, "", "", "")
 
 	results, err := validator.Validate(context.Background(), []model.Evidence{})
 
@@ -229,7 +229,7 @@ func TestValidator_Validate_ContextCancellation(t *testing.T) {
 		{URL: server.URL},
 	}
 
-	validator := NewValidator(10*time.Second, 20, nil)
+	validator := NewValidator(10*time.Second, 20, nil, "", "", "")
 
 	// Create context with short timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -276,7 +276,7 @@ func TestValidator_Validate_MixedResults(t *testing.T) {
 		{URL: server3.URL},
 	}
 
-	validator := NewValidator(5*time.Second, 20, nil)
+	validator := NewValidator(5*time.Second, 20, nil, "", "", "")
 	results, err := validator.Validate(context.Background(), evidence)
 
 	if err != nil {
@@ -316,7 +316,7 @@ func TestValidator_AuthorityClassification(t *testing.T) {
 		PrimaryDomains: []string{"127.0.0.1"},
 	}
 
-	validator := NewValidator(5*time.Second, 20, config)
+	validator := NewValidator(5*time.Second, 20, config, "", "", "")
 	evidence := model.Evidence{URL: server.URL}
 
 	result := validator.validateSingle(context.Background(), evidence)
@@ -328,7 +328,7 @@ func TestValidator_AuthorityClassification(t *testing.T) {
 }
 
 func TestNewValidator_DefaultWorkers(t *testing.T) {
-	validator := NewValidator(5*time.Second, 0, nil)
+	validator := NewValidator(5*time.Second, 0, nil, "", "", "")
 
 	if validator.maxWorkers != 20 {
 		t.Errorf("Expected default max workers to be 20, got %d", validator.maxWorkers)
@@ -336,7 +336,7 @@ func TestNewValidator_DefaultWorkers(t *testing.T) {
 }
 
 func TestNewValidator_CustomWorkers(t *testing.T) {
-	validator := NewValidator(5*time.Second, 50, nil)
+	validator := NewValidator(5*time.Second, 50, nil, "", "", "")
 
 	if validator.maxWorkers != 50 {
 		t.Errorf("Expected max workers to be 50, got %d", validator.maxWorkers)

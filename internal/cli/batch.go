@@ -52,6 +52,8 @@ func init() {
 	batchCmd.Flags().StringVar(&userAgent, "ua", "Entropia/0.1 (+https://github.com/ppiankov/entropia)", "HTTP User-Agent")
 	batchCmd.Flags().BoolVar(&noCache, "no-cache", false, "disable cache (force fresh fetch)")
 	batchCmd.Flags().BoolVar(&noFooter, "no-footer", false, "disable footer in Markdown reports")
+	batchCmd.Flags().StringVar(&httpProxy, "http-proxy", "", "HTTP proxy URL (overrides HTTP_PROXY env var)")
+	batchCmd.Flags().StringVar(&httpsProxy, "https-proxy", "", "HTTPS proxy URL (overrides HTTPS_PROXY env var)")
 
 	// LLM flags
 	batchCmd.Flags().BoolVar(&llmEnabled, "llm", false, "enable LLM summary generation")
@@ -79,6 +81,8 @@ func runBatch(cmd *cobra.Command, args []string) error {
 	cfg := model.DefaultConfig()
 	cfg.HTTP.Timeout = timeout
 	cfg.HTTP.UserAgent = userAgent
+	cfg.HTTP.HTTPProxy = httpProxy
+	cfg.HTTP.HTTPSProxy = httpsProxy
 	cfg.Cache.Enabled = !noCache
 	cfg.Concurrency.Workers = concurrency
 	cfg.Output.Verbose = verbose

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -17,15 +18,36 @@ type Validator struct {
 	authority  *AuthorityClassifier
 }
 
+func newProxyFunc(httpProxy, httpsProxy, noProxy string) func(*http.Request) (*url.URL, error) {
+	if httpProxy == "" && httpsProxy == "" {
+		return http.ProxyFromEnvironment
+	}
+
+	return func(req *http.Request) (*url.URL, error) {
+		if req.URL.Scheme == "https" && httpsProxy != "" {
+			return url.Parse(httpsProxy)
+		}
+		if httpProxy != "" {
+			return url.Parse(httpProxy)
+		}
+		return http.ProxyFromEnvironment(req)
+	}
+}
+
 // NewValidator creates a new validator
-func NewValidator(timeout time.Duration, maxWorkers int, authConfig *model.AuthorityConfig) *Validator {
+func NewValidator(timeout time.Duration, maxWorkers int, authConfig *model.AuthorityConfig, httpProxy, httpsProxy, noProxy string) *Validator {
 	if maxWorkers <= 0 {
 		maxWorkers = 20
 	}
 
+	proxyFunc := newProxyFunc(httpProxy, httpsProxy, noProxy)
+
 	return &Validator{
 		httpClient: &http.Client{
 			Timeout: timeout,
+			Transport: &http.Transport{
+				Proxy: proxyFunc,
+			},
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				if len(via) >= 3 {
 					return fmt.Errorf("stopped after 3 redirects")
@@ -106,7 +128,7 @@ func (v *Validator) validateSingle(ctx context.Context, evidence model.Evidence)
 		result.IsDead = true
 		return result
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	result.StatusCode = resp.StatusCode
 
@@ -146,6 +168,6 @@ func (v *Validator) validateSingle(ctx context.Context, evidence model.Evidence)
 
 // ValidateBatch is a convenience method for validating evidence with default settings
 func ValidateBatch(ctx context.Context, evidence []model.Evidence, authConfig *model.AuthorityConfig) ([]model.ValidationResult, error) {
-	validator := NewValidator(10*time.Second, 20, authConfig)
+	validator := NewValidator(10*time.Second, 20, authConfig, "", "", "")
 	return validator.Validate(ctx, evidence)
 }

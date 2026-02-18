@@ -140,11 +140,11 @@ func DetectEditWar(ctx context.Context, pageURL string) (*EditWarIndicators, err
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check if response is actually JSON
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Wikipedia API returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("wikipedia API returned status %d", resp.StatusCode)
 	}
 
 	var apiResp WikipediaRevisionsResponse

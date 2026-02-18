@@ -40,6 +40,9 @@ func ConfigFromModel(modelConfig model.LLMConfig) Config {
 		Timeout:        modelConfig.Timeout,
 		StrictEvidence: modelConfig.StrictEvidence,
 		MaxTokens:      modelConfig.MaxTokens,
+		HTTPProxy:      modelConfig.HTTPProxy,
+		HTTPSProxy:     modelConfig.HTTPSProxy,
+		NoProxy:        modelConfig.NoProxy,
 	}
 }
 
