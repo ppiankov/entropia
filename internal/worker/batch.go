@@ -11,15 +11,20 @@ import (
 	"github.com/ppiankov/entropia/internal/pipeline"
 )
 
+// Scanner defines the interface for scanning a URL
+type Scanner interface {
+	ScanURL(ctx context.Context, url string) (*pipeline.ScanResult, error)
+}
+
 // ScanJob represents a URL scan job
 type ScanJob struct {
-	URL      string
-	Pipeline *pipeline.Pipeline
+	URL     string
+	Scanner Scanner
 }
 
 // Execute executes the scan job
 func (j *ScanJob) Execute(ctx context.Context) Result {
-	result, err := j.Pipeline.ScanURL(ctx, j.URL)
+	result, err := j.Scanner.ScanURL(ctx, j.URL)
 	if err != nil {
 		return &ScanResult{
 			URL:    j.URL,
@@ -48,14 +53,14 @@ func (r *ScanResult) GetError() error {
 
 // BatchProcessor processes multiple URLs concurrently
 type BatchProcessor struct {
-	pipeline    *pipeline.Pipeline
+	scanner     Scanner
 	concurrency int
 }
 
 // NewBatchProcessor creates a new batch processor
-func NewBatchProcessor(pipeline *pipeline.Pipeline, concurrency int) *BatchProcessor {
+func NewBatchProcessor(scanner Scanner, concurrency int) *BatchProcessor {
 	return &BatchProcessor{
-		pipeline:    pipeline,
+		scanner:     scanner,
 		concurrency: concurrency,
 	}
 }
@@ -73,8 +78,8 @@ func (b *BatchProcessor) ProcessURLs(ctx context.Context, urls []string) []*Scan
 	// Submit jobs
 	for _, url := range urls {
 		job := &ScanJob{
-			URL:      url,
-			Pipeline: b.pipeline,
+			URL:     url,
+			Scanner: b.scanner,
 		}
 		pool.Submit(job)
 	}
