@@ -23,6 +23,7 @@ type Pool struct {
 	wg         sync.WaitGroup
 	ctx        context.Context
 	cancelFunc context.CancelFunc
+	closeOnce  sync.Once
 }
 
 // NewPool creates a new worker pool with the specified number of workers
@@ -63,7 +64,11 @@ func (p *Pool) worker(id int) {
 				return
 			}
 			result := job.Execute(p.ctx)
-			p.results <- result
+			select {
+			case p.results <- result:
+			case <-p.ctx.Done():
+				return
+			}
 		}
 	}
 }
@@ -82,11 +87,11 @@ func (p *Pool) Wait() []Result {
 	// Close job queue to signal workers to exit when done
 	close(p.jobQueue)
 
-	// Wait for all workers to finish
-	p.wg.Wait()
-
-	// Close results channel
-	close(p.results)
+	// Use a goroutine to wait for workers and close results
+	go func() {
+		p.wg.Wait()
+		p.closeResults()
+	}()
 
 	// Collect all results
 	var results []Result
@@ -101,7 +106,13 @@ func (p *Pool) Wait() []Result {
 func (p *Pool) Shutdown() {
 	p.cancelFunc()
 	p.wg.Wait()
-	close(p.results)
+	p.closeResults()
+}
+
+func (p *Pool) closeResults() {
+	p.closeOnce.Do(func() {
+		close(p.results)
+	})
 }
 
 // ResultCollector provides a safer way to collect results as they arrive
