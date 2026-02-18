@@ -23,6 +23,8 @@ var (
 	llmEnabled  bool
 	llmProvider string
 	llmModel    string
+	httpProxy   string
+	httpsProxy  string
 )
 
 // scanCmd represents the scan command
@@ -58,6 +60,8 @@ func init() {
 	scanCmd.Flags().BoolVar(&noCache, "no-cache", false, "disable cache (force fresh fetch)")
 	scanCmd.Flags().BoolVar(&noFooter, "no-footer", false, "disable footer in Markdown reports")
 	scanCmd.Flags().BoolVar(&insecureTLS, "insecure", false, "skip TLS certificate verification (use for self-signed certs)")
+	scanCmd.Flags().StringVar(&httpProxy, "http-proxy", "", "HTTP proxy URL (overrides HTTP_PROXY env var)")
+	scanCmd.Flags().StringVar(&httpsProxy, "https-proxy", "", "HTTPS proxy URL (overrides HTTPS_PROXY env var)")
 
 	// LLM flags
 	scanCmd.Flags().BoolVar(&llmEnabled, "llm", false, "enable LLM summary generation")
@@ -83,6 +87,8 @@ func runScan(cmd *cobra.Command, args []string) error {
 	cfg.HTTP.UserAgent = userAgent
 	cfg.HTTP.MaxBodyBytes = maxBytes
 	cfg.HTTP.InsecureTLS = insecureTLS
+	cfg.HTTP.HTTPProxy = httpProxy
+	cfg.HTTP.HTTPSProxy = httpsProxy
 	cfg.Cache.Enabled = !noCache
 	cfg.Output.Verbose = verbose
 	cfg.Output.IncludeFooter = !noFooter

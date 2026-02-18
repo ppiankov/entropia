@@ -32,7 +32,13 @@ func NewPipeline(cfg *model.Config) *Pipeline {
 	// Create LLM summarizer if configured
 	var summarizer *llm.Summarizer
 	if cfg.LLM.Provider != "" {
-		llmConfig := llm.ConfigFromModel(cfg.LLM)
+		// Copy proxy settings from HTTP config to LLM config
+		llmModelCfg := cfg.LLM
+		llmModelCfg.HTTPProxy = cfg.HTTP.HTTPProxy
+		llmModelCfg.HTTPSProxy = cfg.HTTP.HTTPSProxy
+		llmModelCfg.NoProxy = cfg.HTTP.NoProxy
+
+		llmConfig := llm.ConfigFromModel(llmModelCfg)
 		s, err := llm.NewSummarizer(llmConfig)
 		if err != nil {
 			fmt.Printf("Warning: Failed to initialize LLM provider: %v\n", err)
@@ -42,10 +48,10 @@ func NewPipeline(cfg *model.Config) *Pipeline {
 	}
 
 	return &Pipeline{
-		fetcher:        NewFetcher(cfg.HTTP.Timeout, cfg.HTTP.UserAgent, cfg.HTTP.MaxBodyBytes, cfg.HTTP.InsecureTLS),
+		fetcher:        NewFetcher(cfg.HTTP.Timeout, cfg.HTTP.UserAgent, cfg.HTTP.MaxBodyBytes, cfg.HTTP.InsecureTLS, cfg.HTTP.HTTPProxy, cfg.HTTP.HTTPSProxy, cfg.HTTP.NoProxy),
 		claimExtractor: extract.NewClaimExtractor(),
 		evidExtractor:  extract.NewEvidenceExtractor(),
-		validator:      validate.NewValidator(10*time.Second, cfg.Concurrency.ValidationWorkers, &cfg.Authority),
+		validator:      validate.NewValidator(10*time.Second, cfg.Concurrency.ValidationWorkers, &cfg.Authority, cfg.HTTP.HTTPProxy, cfg.HTTP.HTTPSProxy, cfg.HTTP.NoProxy),
 		scorer:         score.NewScorer(),
 		renderer:       NewRenderer(cfg.Output.IncludeFooter),
 		summarizer:     summarizer,
@@ -139,7 +145,6 @@ func (p *Pipeline) ScanURL(ctx context.Context, url string) (*ScanResult, error)
 		Error:  nil,
 	}, nil
 }
-
 
 // RenderReport renders the report to the specified outputs
 func (p *Pipeline) RenderReport(report *model.Report, jsonPath string, mdPath string, verbose bool) error {

@@ -37,12 +37,15 @@ type HTTPConfig struct {
 	MaxRedirects    int           `json:"max_redirects" yaml:"max_redirects"`       // Max redirects to follow
 	MaxBodyBytes    int64         `json:"max_body_bytes" yaml:"max_body_bytes"`     // Max response size
 	InsecureTLS     bool          `json:"insecure_tls" yaml:"insecure_tls"`         // Skip TLS certificate verification
+	HTTPProxy       string        `json:"http_proxy" yaml:"http_proxy"`             // HTTP proxy URL (overrides HTTP_PROXY env var)
+	HTTPSProxy      string        `json:"https_proxy" yaml:"https_proxy"`           // HTTPS proxy URL (overrides HTTPS_PROXY env var)
+	NoProxy         string        `json:"no_proxy" yaml:"no_proxy"`                 // Comma-separated hosts to bypass proxy
 }
 
 // ConcurrencyConfig contains concurrency settings
 type ConcurrencyConfig struct {
-	Workers           int `json:"workers" yaml:"workers"`                         // Batch mode workers
-	ValidationWorkers int `json:"validation_workers" yaml:"validation_workers"`   // Concurrent evidence validation
+	Workers           int `json:"workers" yaml:"workers"`                       // Batch mode workers
+	ValidationWorkers int `json:"validation_workers" yaml:"validation_workers"` // Concurrent evidence validation
 }
 
 // RateLimitingConfig contains rate limiting settings
@@ -68,6 +71,9 @@ type LLMConfig struct {
 	StrictEvidence bool   `json:"strict_evidence" yaml:"strict_evidence"` // Enforce citation allowlist
 	Timeout        int    `json:"timeout" yaml:"timeout"`                 // LLM request timeout (seconds)
 	MaxTokens      int    `json:"max_tokens" yaml:"max_tokens"`           // Max output tokens
+	HTTPProxy      string `json:"http_proxy" yaml:"http_proxy"`           // HTTP proxy URL
+	HTTPSProxy     string `json:"https_proxy" yaml:"https_proxy"`         // HTTPS proxy URL
+	NoProxy        string `json:"no_proxy" yaml:"no_proxy"`               // Comma-separated hosts to bypass proxy
 }
 
 // ScoringConfig contains scoring engine settings

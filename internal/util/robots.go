@@ -83,7 +83,7 @@ func (r *RobotsChecker) getRobotsData(ctx context.Context, host string, robotsUR
 	if err != nil {
 		return nil, fmt.Errorf("fetch robots.txt: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// If robots.txt doesn't exist, allow everything
 	if resp.StatusCode == 404 {

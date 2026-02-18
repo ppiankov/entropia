@@ -22,12 +22,16 @@ func NewRenderer(includeFooter bool) *Renderer {
 }
 
 // RenderJSON writes the report as JSON to the specified path
-func (r *Renderer) RenderJSON(report *model.Report, path string) error {
+func (r *Renderer) RenderJSON(report *model.Report, path string) (err error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close file: %w", closeErr)
+		}
+	}()
 
 	encoder := json.NewEncoder(f)
 	encoder.SetIndent("", "  ")
@@ -39,42 +43,60 @@ func (r *Renderer) RenderJSON(report *model.Report, path string) error {
 }
 
 // RenderMarkdown writes the report as Markdown to the specified path
-func (r *Renderer) RenderMarkdown(report *model.Report, path string) error {
+func (r *Renderer) RenderMarkdown(report *model.Report, path string) (err error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close file: %w", closeErr)
+		}
+	}()
+
+	// Helpers for writing with error checking
+	printf := func(format string, a ...interface{}) {
+		if err != nil {
+			return
+		}
+		_, err = fmt.Fprintf(f, format, a...)
+	}
+	println := func(a ...interface{}) {
+		if err != nil {
+			return
+		}
+		_, err = fmt.Fprintln(f, a...)
+	}
 
 	// Header
-	fmt.Fprintf(f, "# Entropia Report: %s\n\n", report.Subject)
-	fmt.Fprintf(f, "**Source:** %s\n\n", report.SourceURL)
-	fmt.Fprintf(f, "**Fetched:** %s\n\n", report.FetchedAt.Format("2006-01-02 15:04:05 UTC"))
+	printf("# Entropia Report: %s\n\n", report.Subject)
+	printf("**Source:** %s\n\n", report.SourceURL)
+	printf("**Fetched:** %s\n\n", report.FetchedAt.Format("2006-01-02 15:04:05 UTC"))
 
 	// Support Index
-	fmt.Fprintf(f, "## Support Index: %d / 100\n\n", report.Score.Index)
-	fmt.Fprintf(f, "**Confidence:** %s\n\n", report.Score.Confidence)
+	printf("## Support Index: %d / 100\n\n", report.Score.Index)
+	printf("**Confidence:** %s\n\n", report.Score.Confidence)
 	if report.Score.Conflict {
-		fmt.Fprintf(f, "**⚠️ Conflict Detected:** Mutually exclusive claims present\n\n")
+		printf("**⚠️ Conflict Detected:** Mutually exclusive claims present\n\n")
 	}
 
 	// Detected Claims
-	fmt.Fprintf(f, "## Detected Claims (%d)\n\n", len(report.Claims))
+	printf("## Detected Claims (%d)\n\n", len(report.Claims))
 	if len(report.Claims) > 0 {
 		for i, claim := range report.Claims {
 			if i >= 10 {
-				fmt.Fprintf(f, "\n*... and %d more claims*\n", len(report.Claims)-10)
+				printf("\n*... and %d more claims*\n", len(report.Claims)-10)
 				break
 			}
-			fmt.Fprintf(f, "%d. %s\n", i+1, claim.Text)
+			printf("%d. %s\n", i+1, claim.Text)
 		}
 	} else {
-		fmt.Fprintf(f, "*No claims detected*\n")
+		printf("*No claims detected*\n")
 	}
-	fmt.Fprintln(f)
+	println()
 
 	// Evidence
-	fmt.Fprintf(f, "## Evidence Links (%d)\n\n", len(report.Evidence))
+	printf("## Evidence Links (%d)\n\n", len(report.Evidence))
 	if len(report.Evidence) > 0 {
 		// Group by authority tier
 		primaryEvidence := []model.Evidence{}
@@ -93,43 +115,43 @@ func (r *Renderer) RenderMarkdown(report *model.Report, path string) error {
 		}
 
 		if len(primaryEvidence) > 0 {
-			fmt.Fprintf(f, "### Primary Sources (%d)\n\n", len(primaryEvidence))
+			printf("### Primary Sources (%d)\n\n", len(primaryEvidence))
 			for i, ev := range primaryEvidence {
 				if i >= 5 {
 					break
 				}
-				fmt.Fprintf(f, "- [%s](%s)\n", ev.Host, ev.URL)
+				printf("- [%s](%s)\n", ev.Host, ev.URL)
 			}
-			fmt.Fprintln(f)
+			println()
 		}
 
 		if len(secondaryEvidence) > 0 {
-			fmt.Fprintf(f, "### Secondary Sources (%d)\n\n", len(secondaryEvidence))
+			printf("### Secondary Sources (%d)\n\n", len(secondaryEvidence))
 			for i, ev := range secondaryEvidence {
 				if i >= 5 {
 					break
 				}
-				fmt.Fprintf(f, "- [%s](%s)\n", ev.Host, ev.URL)
+				printf("- [%s](%s)\n", ev.Host, ev.URL)
 			}
-			fmt.Fprintln(f)
+			println()
 		}
 
 		if len(tertiaryEvidence) > 0 {
-			fmt.Fprintf(f, "### Tertiary Sources (%d)\n\n", len(tertiaryEvidence))
+			printf("### Tertiary Sources (%d)\n\n", len(tertiaryEvidence))
 			for i, ev := range tertiaryEvidence {
 				if i >= 5 {
 					break
 				}
-				fmt.Fprintf(f, "- [%s](%s)\n", ev.Host, ev.URL)
+				printf("- [%s](%s)\n", ev.Host, ev.URL)
 			}
-			fmt.Fprintln(f)
+			println()
 		}
 	} else {
-		fmt.Fprintf(f, "*No evidence links found*\n\n")
+		printf("*No evidence links found*\n\n")
 	}
 
 	// Diagnostic Signals
-	fmt.Fprintf(f, "## Diagnostic Signals\n\n")
+	printf("## Diagnostic Signals\n\n")
 	for _, signal := range report.Score.Signals {
 		icon := "ℹ️"
 		switch signal.Severity {
@@ -139,23 +161,23 @@ func (r *Renderer) RenderMarkdown(report *model.Report, path string) error {
 			icon = "🔴"
 		}
 
-		fmt.Fprintf(f, "%s **%s**: %s\n", icon, signal.Type, signal.Description)
+		printf("%s **%s**: %s\n", icon, signal.Type, signal.Description)
 
 		// Show key data points
 		if signal.Data != nil {
 			if score, ok := signal.Data["score"]; ok {
-				fmt.Fprintf(f, "   - Score: %v\n", score)
+				printf("   - Score: %v\n", score)
 			}
 			if formula, ok := signal.Data["formula"]; ok {
-				fmt.Fprintf(f, "   - Formula: `%v`\n", formula)
+				printf("   - Formula: `%v`\n", formula)
 			}
 		}
-		fmt.Fprintln(f)
+		println()
 	}
 
 	// Validation Summary
 	if len(report.Validation) > 0 {
-		fmt.Fprintf(f, "## Validation Summary\n\n")
+		printf("## Validation Summary\n\n")
 
 		accessibleCount := 0
 		deadCount := 0
@@ -173,30 +195,30 @@ func (r *Renderer) RenderMarkdown(report *model.Report, path string) error {
 			}
 		}
 
-		fmt.Fprintf(f, "- Total evidence validated: %d\n", len(report.Validation))
-		fmt.Fprintf(f, "- Accessible: %d (%.0f%%)\n", accessibleCount, float64(accessibleCount)/float64(len(report.Validation))*100)
-		fmt.Fprintf(f, "- Dead links: %d\n", deadCount)
-		fmt.Fprintf(f, "- Stale sources (>1 year): %d\n", staleCount)
-		fmt.Fprintln(f)
+		printf("- Total evidence validated: %d\n", len(report.Validation))
+		printf("- Accessible: %d (%.0f%%)\n", accessibleCount, float64(accessibleCount)/float64(len(report.Validation))*100)
+		printf("- Dead links: %d\n", deadCount)
+		printf("- Stale sources (>1 year): %d\n", staleCount)
+		println()
 	}
 
 	// Principles
-	fmt.Fprintf(f, "## Principles Applied\n\n")
-	fmt.Fprintf(f, "- **Non-Normative**: Evaluates support, not truth\n")
-	fmt.Fprintf(f, "- **Transparent**: All scoring explainable\n")
-	fmt.Fprintf(f, "- **Symmetric**: Same rules for all sources\n\n")
+	printf("## Principles Applied\n\n")
+	printf("- **Non-Normative**: Evaluates support, not truth\n")
+	printf("- **Transparent**: All scoring explainable\n")
+	printf("- **Symmetric**: Same rules for all sources\n\n")
 
 	// Footer (optional, configurable)
 	if r.IncludeFooter {
-		fmt.Fprintf(f, "---\n\n")
-		fmt.Fprintf(f, "*Generated by Entropia — a mirror, not an oracle*\n")
+		printf("---\n\n")
+		printf("*Generated by Entropia — a mirror, not an oracle*\n")
 	}
 
-	return nil
+	return err
 }
 
 // RenderLLMMarkdown writes the LLM summary markdown to a separate file
-func (r *Renderer) RenderLLMMarkdown(content string, path string) error {
+func (r *Renderer) RenderLLMMarkdown(content string, path string) (err error) {
 	if content == "" {
 		return nil
 	}
@@ -205,7 +227,11 @@ func (r *Renderer) RenderLLMMarkdown(content string, path string) error {
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close file: %w", closeErr)
+		}
+	}()
 
 	_, err = f.WriteString(content)
 	if err != nil {

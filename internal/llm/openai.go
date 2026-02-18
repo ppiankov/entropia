@@ -2,7 +2,10 @@ package llm
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -10,6 +13,22 @@ import (
 
 	"github.com/sashabaranov/go-openai"
 )
+
+func newOpenAIProxyFunc(httpProxy, httpsProxy, noProxy string) func(*http.Request) (*url.URL, error) {
+	if httpProxy == "" && httpsProxy == "" {
+		return http.ProxyFromEnvironment
+	}
+
+	return func(req *http.Request) (*url.URL, error) {
+		if req.URL.Scheme == "https" && httpsProxy != "" {
+			return url.Parse(httpsProxy)
+		}
+		if httpProxy != "" {
+			return url.Parse(httpProxy)
+		}
+		return http.ProxyFromEnvironment(req)
+	}
+}
 
 // OpenAIProvider implements the Provider interface for OpenAI models
 type OpenAIProvider struct {
@@ -29,6 +48,15 @@ func NewOpenAIProvider(config Config) (*OpenAIProvider, error) {
 		clientConfig.BaseURL = config.BaseURL
 	} else {
 		clientConfig = openai.DefaultConfig(config.APIKey)
+	}
+
+	proxyFunc := newOpenAIProxyFunc(config.HTTPProxy, config.HTTPSProxy, config.NoProxy)
+	clientConfig.HTTPClient = &http.Client{
+		Timeout: time.Duration(config.Timeout) * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: false},
+			Proxy:           proxyFunc,
+		},
 	}
 
 	client := openai.NewClientWithConfig(clientConfig)

@@ -43,7 +43,7 @@ func (c *DiskCache) Get(key string) ([]byte, bool) {
 
 	// Check expiration
 	if time.Now().After(entry.ExpiresAt) {
-		os.Remove(path)
+		_ = os.Remove(path)
 		return nil, false
 	}
 

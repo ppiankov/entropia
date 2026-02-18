@@ -7,10 +7,27 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 )
+
+func newAnthropicProxyFunc(httpProxy, httpsProxy, noProxy string) func(*http.Request) (*url.URL, error) {
+	if httpProxy == "" && httpsProxy == "" {
+		return http.ProxyFromEnvironment
+	}
+
+	return func(req *http.Request) (*url.URL, error) {
+		if req.URL.Scheme == "https" && httpsProxy != "" {
+			return url.Parse(httpsProxy)
+		}
+		if httpProxy != "" {
+			return url.Parse(httpProxy)
+		}
+		return http.ProxyFromEnvironment(req)
+	}
+}
 
 // AnthropicProvider implements the Provider interface for Anthropic Claude models
 type AnthropicProvider struct {
@@ -22,11 +39,11 @@ type AnthropicProvider struct {
 
 // Anthropic API structures
 type anthropicRequest struct {
-	Model       string              `json:"model"`
-	MaxTokens   int                 `json:"max_tokens"`
-	Messages    []anthropicMessage  `json:"messages"`
-	System      string              `json:"system,omitempty"`
-	Temperature float64             `json:"temperature,omitempty"`
+	Model       string             `json:"model"`
+	MaxTokens   int                `json:"max_tokens"`
+	Messages    []anthropicMessage `json:"messages"`
+	System      string             `json:"system,omitempty"`
+	Temperature float64            `json:"temperature,omitempty"`
 }
 
 type anthropicMessage struct {
@@ -62,7 +79,7 @@ type anthropicError struct {
 // NewAnthropicProvider creates a new Anthropic provider
 func NewAnthropicProvider(config Config) (*AnthropicProvider, error) {
 	if config.APIKey == "" {
-		return nil, fmt.Errorf("Anthropic API key is required")
+		return nil, fmt.Errorf("anthropic API key is required")
 	}
 
 	baseURL := config.BaseURL
@@ -75,11 +92,16 @@ func NewAnthropicProvider(config Config) (*AnthropicProvider, error) {
 		timeout = 30 * time.Second
 	}
 
+	proxyFunc := newAnthropicProxyFunc(config.HTTPProxy, config.HTTPSProxy, config.NoProxy)
+
 	return &AnthropicProvider{
 		apiKey:  config.APIKey,
 		baseURL: strings.TrimSuffix(baseURL, "/"),
 		httpClient: &http.Client{
 			Timeout: timeout,
+			Transport: &http.Transport{
+				Proxy: proxyFunc,
+			},
 		},
 		config: config,
 	}, nil
@@ -154,7 +176,7 @@ func (p *AnthropicProvider) Summarize(ctx context.Context, req SummarizeRequest)
 	// Make API call
 	resp, err := p.makeRequest(ctx, apiReq)
 	if err != nil {
-		return nil, fmt.Errorf("Anthropic API error: %w", err)
+		return nil, fmt.Errorf("anthropic API error: %w", err)
 	}
 
 	// Extract text from response
@@ -211,7 +233,7 @@ func (p *AnthropicProvider) makeRequest(ctx context.Context, apiReq anthropicReq
 	if err != nil {
 		return nil, fmt.Errorf("execute request: %w", err)
 	}
-	defer httpResp.Body.Close()
+	defer func() { _ = httpResp.Body.Close() }()
 
 	// Read response body
 	respBody, err := io.ReadAll(httpResp.Body)
