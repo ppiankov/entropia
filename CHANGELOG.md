@@ -5,6 +5,23 @@ All notable changes to Entropia will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-02-20
+
+### Added
+- Homebrew packaging (`brew install ppiankov/tap/entropia`)
+- Proxy support for all HTTP clients (HTTP_PROXY, HTTPS_PROXY, NO_PROXY)
+- Worker package test coverage (0% → 93%)
+- LLM provider test coverage improvements
+- Project CLAUDE.md for agentic workflows
+- Work orders documentation (docs/work-orders.md)
+
+### Fixed
+- 19 lint errors (unchecked error returns across all packages)
+- Go version aligned to 1.25 across go.mod, CI, and README
+- Version injection via LDFLAGS (no longer hardcoded)
+
+---
+
 ## [0.1.14] - 2026-01-28
 
 ### Added
