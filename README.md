@@ -417,6 +417,16 @@ Entropia targets an adjacent problem space to fact-checking and link checking: *
 
 ---
 
+## Agent Integration
+
+entropia is designed to be used by autonomous agents without plugins or SDKs. Single binary, deterministic output, structured JSON, bounded jobs.
+
+Agents: read [`SKILL.md`](SKILL.md) for install, commands, JSON parsing patterns, and scoring interpretation.
+
+Key pattern for agents: `entropia scan <url> --json report.json` then parse `.score.index` for the support score (0-100).
+
+---
+
 ## 🛠️ Development
 
 ### Build from Source
