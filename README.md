@@ -36,6 +36,16 @@ sudo cp bin/entropia /usr/local/bin/
 entropia --version
 ```
 
+### Agent Integration
+
+entropia is designed to be used by autonomous agents without plugins or SDKs. Single binary, deterministic output, structured JSON, bounded jobs.
+
+Agents: read [`SKILL.md`](SKILL.md) for install, commands, JSON parsing patterns, and scoring interpretation.
+
+Key pattern for agents: `entropia scan <url> --json report.json` then parse `.score.index` for the support score (0-100).
+
+Cross-tool integration: [noisepan](https://github.com/ppiankov/noisepan) calls entropia automatically via `noisepan verify` on high-signal posts. Install both tools and the verification pipeline works out of the box.
+
 ### Basic Usage
 
 **Scan a single URL:**
@@ -414,16 +424,6 @@ Entropia targets an adjacent problem space to fact-checking and link checking: *
 | **Transparent scoring** (documented formulas) | ✅ | ❌ | ⚠️ | ❌ |
 
 **Entropia combines 5 capabilities that currently require 3-4 separate tools + manual review.**
-
----
-
-## Agent Integration
-
-entropia is designed to be used by autonomous agents without plugins or SDKs. Single binary, deterministic output, structured JSON, bounded jobs.
-
-Agents: read [`SKILL.md`](SKILL.md) for install, commands, JSON parsing patterns, and scoring interpretation.
-
-Key pattern for agents: `entropia scan <url> --json report.json` then parse `.score.index` for the support score (0-100).
 
 ---
 
