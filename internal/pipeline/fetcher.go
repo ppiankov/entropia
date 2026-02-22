@@ -4,15 +4,23 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/ppiankov/entropia/internal/model"
+	"github.com/ppiankov/entropia/internal/util"
 )
+
+const fetchMaxRetries = 3
+
+// fetchSleepFunc is the sleep function used between retries (injectable for tests)
+var fetchSleepFunc = time.Sleep
 
 // Fetcher fetches HTML content from URLs
 type Fetcher struct {
@@ -21,26 +29,9 @@ type Fetcher struct {
 	maxBytes   int64
 }
 
-// NewProxyFunc creates a proxy function based on configuration
-func NewProxyFunc(httpProxy, httpsProxy, noProxy string) func(*http.Request) (*url.URL, error) {
-	if httpProxy == "" && httpsProxy == "" {
-		return http.ProxyFromEnvironment
-	}
-
-	return func(req *http.Request) (*url.URL, error) {
-		if req.URL.Scheme == "https" && httpsProxy != "" {
-			return url.Parse(httpsProxy)
-		}
-		if httpProxy != "" {
-			return url.Parse(httpProxy)
-		}
-		return http.ProxyFromEnvironment(req)
-	}
-}
-
 // NewFetcher creates a new Fetcher with the given configuration
 func NewFetcher(timeout time.Duration, userAgent string, maxBytes int64, insecureTLS bool, httpProxy, httpsProxy, noProxy string) *Fetcher {
-	proxyFunc := NewProxyFunc(httpProxy, httpsProxy, noProxy)
+	proxyFunc := util.NewProxyFunc(httpProxy, httpsProxy, noProxy)
 
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
@@ -128,6 +119,52 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (*FetchResult, error
 		Subject:  subject,
 		FinalURL: finalURL,
 	}, nil
+}
+
+// FetchWithRetry wraps Fetch with exponential backoff retry for transient errors.
+// Retries on: timeouts, connection errors, 429, 5xx. No retry on 4xx (except 429).
+func (f *Fetcher) FetchWithRetry(ctx context.Context, rawURL string) (*FetchResult, error) {
+	var lastErr error
+	for attempt := 0; attempt < fetchMaxRetries; attempt++ {
+		result, err := f.Fetch(ctx, rawURL)
+		if err == nil {
+			return result, nil
+		}
+		if !isRetryableFetchError(err) {
+			return nil, err
+		}
+		lastErr = err
+		if attempt < fetchMaxRetries-1 {
+			backoff := time.Duration(1<<uint(attempt)) * time.Second
+			fetchSleepFunc(backoff)
+		}
+	}
+	return nil, fmt.Errorf("after %d attempts: %w", fetchMaxRetries, lastErr)
+}
+
+// isRetryableFetchError returns true for transient errors worth retrying
+func isRetryableFetchError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	// Timeout (net or context deadline)
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	// Connection refused / reset
+	if strings.Contains(s, "connection refused") || strings.Contains(s, "connection reset") {
+		return true
+	}
+	// HTTP 429 or 5xx wrapped in our "unexpected status: NNN" format
+	if strings.Contains(s, "unexpected status: 429") {
+		return true
+	}
+	if strings.Contains(s, "unexpected status: 5") {
+		return true
+	}
+	return false
 }
 
 // extractSubject extracts a human-readable subject from the URL

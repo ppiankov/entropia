@@ -2,10 +2,13 @@ package pipeline
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/ppiankov/entropia/internal/cache"
 	"github.com/ppiankov/entropia/internal/extract"
 	"github.com/ppiankov/entropia/internal/extract/adapters"
 	"github.com/ppiankov/entropia/internal/llm"
@@ -24,6 +27,7 @@ type Pipeline struct {
 	scorer         *score.Scorer
 	renderer       *Renderer
 	summarizer     *llm.Summarizer // Optional LLM summarizer (nil if disabled)
+	cache          *cache.LayeredCache
 	config         *model.Config
 }
 
@@ -47,6 +51,19 @@ func NewPipeline(cfg *model.Config) *Pipeline {
 		}
 	}
 
+	// Initialize cache if enabled
+	var lc *cache.LayeredCache
+	if cfg.Cache.Enabled {
+		cacheDir := cfg.Cache.Dir
+		if strings.HasPrefix(cacheDir, "~/") {
+			home, err := os.UserHomeDir()
+			if err == nil {
+				cacheDir = home + cacheDir[1:]
+			}
+		}
+		lc = cache.NewLayeredCache(cfg.Cache.TTL, cacheDir, cfg.Cache.TTL)
+	}
+
 	return &Pipeline{
 		fetcher:        NewFetcher(cfg.HTTP.Timeout, cfg.HTTP.UserAgent, cfg.HTTP.MaxBodyBytes, cfg.HTTP.InsecureTLS, cfg.HTTP.HTTPProxy, cfg.HTTP.HTTPSProxy, cfg.HTTP.NoProxy),
 		claimExtractor: extract.NewClaimExtractor(),
@@ -55,6 +72,7 @@ func NewPipeline(cfg *model.Config) *Pipeline {
 		scorer:         score.NewScorer(),
 		renderer:       NewRenderer(cfg.Output.IncludeFooter),
 		summarizer:     summarizer,
+		cache:          lc,
 		config:         cfg,
 	}
 }
@@ -67,8 +85,19 @@ type ScanResult struct {
 
 // ScanURL scans a single URL and generates a complete report
 func (p *Pipeline) ScanURL(ctx context.Context, url string) (*ScanResult, error) {
+	// Check cache first
+	if p.cache != nil {
+		key := cache.CacheKey(url)
+		if data, found := p.cache.Get(key); found {
+			var report model.Report
+			if err := json.Unmarshal(data, &report); err == nil {
+				return &ScanResult{Report: &report}, nil
+			}
+		}
+	}
+
 	// 1. Fetch HTML
-	fetchResult, err := p.fetcher.Fetch(ctx, url)
+	fetchResult, err := p.fetcher.FetchWithRetry(ctx, url)
 	if err != nil {
 		return nil, fmt.Errorf("fetch: %w", err)
 	}
@@ -129,7 +158,15 @@ func (p *Pipeline) ScanURL(ctx context.Context, url string) (*ScanResult, error)
 		Principles: model.DefaultPrinciples(),
 	}
 
-	// 8. Generate LLM summary if enabled (AFTER scoring, never affects score)
+	// 8. Store in cache (before LLM summary — cache the deterministic result)
+	if p.cache != nil {
+		if data, err := json.Marshal(report); err == nil {
+			key := cache.CacheKey(url)
+			_ = p.cache.Set(key, data, p.config.Cache.TTL)
+		}
+	}
+
+	// 9. Generate LLM summary if enabled (AFTER scoring, never affects score)
 	if p.summarizer != nil && p.summarizer.IsEnabled() {
 		llmSummary, err := p.summarizer.GenerateSummary(ctx, *report)
 		if err != nil {
