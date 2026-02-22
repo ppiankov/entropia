@@ -4,11 +4,17 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/ppiankov/entropia/internal/model"
 )
+
+func init() {
+	// Disable retry sleep in all tests for fast execution
+	validateSleepFunc = func(d time.Duration) {}
+}
 
 func TestValidator_ValidateSingle_Success(t *testing.T) {
 	// Create test server
@@ -340,6 +346,129 @@ func TestNewValidator_CustomWorkers(t *testing.T) {
 
 	if validator.maxWorkers != 50 {
 		t.Errorf("Expected max workers to be 50, got %d", validator.maxWorkers)
+	}
+}
+
+func TestValidateSingleWithRetry_TransientThenSuccess(t *testing.T) {
+	var attempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := attempts.Add(1)
+		if n <= 2 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	validator := NewValidator(5*time.Second, 20, nil, "", "", "")
+	evidence := model.Evidence{URL: server.URL}
+
+	result := validator.validateSingleWithRetry(context.Background(), evidence)
+
+	if !result.IsAccessible {
+		t.Error("Expected accessible after retry")
+	}
+	if attempts.Load() != 3 {
+		t.Errorf("Expected 3 attempts, got %d", attempts.Load())
+	}
+}
+
+func TestValidateSingleWithRetry_PermanentFailure(t *testing.T) {
+	var attempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	validator := NewValidator(5*time.Second, 20, nil, "", "", "")
+	evidence := model.Evidence{URL: server.URL}
+
+	result := validator.validateSingleWithRetry(context.Background(), evidence)
+
+	if result.IsAccessible {
+		t.Error("Expected not accessible for 404")
+	}
+	if !result.IsDead {
+		t.Error("Expected dead for 404")
+	}
+	// 404 is not retryable — should only attempt once
+	if attempts.Load() != 1 {
+		t.Errorf("Expected 1 attempt for non-retryable error, got %d", attempts.Load())
+	}
+}
+
+func TestValidateSingleWithRetry_AllRetriesExhausted(t *testing.T) {
+	var attempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer server.Close()
+
+	validator := NewValidator(5*time.Second, 20, nil, "", "", "")
+	evidence := model.Evidence{URL: server.URL}
+
+	result := validator.validateSingleWithRetry(context.Background(), evidence)
+
+	if result.IsAccessible {
+		t.Error("Expected not accessible after all retries exhausted")
+	}
+	if attempts.Load() != 3 {
+		t.Errorf("Expected 3 attempts, got %d", attempts.Load())
+	}
+}
+
+func TestValidateSingleWithRetry_429Retried(t *testing.T) {
+	var attempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := attempts.Add(1)
+		if n == 1 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	validator := NewValidator(5*time.Second, 20, nil, "", "", "")
+	evidence := model.Evidence{URL: server.URL}
+
+	result := validator.validateSingleWithRetry(context.Background(), evidence)
+
+	if !result.IsAccessible {
+		t.Error("Expected accessible after 429 retry")
+	}
+	if attempts.Load() != 2 {
+		t.Errorf("Expected 2 attempts, got %d", attempts.Load())
+	}
+}
+
+func TestIsRetryableValidationResult(t *testing.T) {
+	tests := []struct {
+		desc      string
+		result    model.ValidationResult
+		retryable bool
+	}{
+		{"200 OK", model.ValidationResult{StatusCode: 200, IsAccessible: true}, false},
+		{"404 Not Found", model.ValidationResult{StatusCode: 404, IsDead: true}, false},
+		{"500 Server Error", model.ValidationResult{StatusCode: 500}, true},
+		{"502 Bad Gateway", model.ValidationResult{StatusCode: 502}, true},
+		{"503 Service Unavailable", model.ValidationResult{StatusCode: 503}, true},
+		{"429 Too Many Requests", model.ValidationResult{StatusCode: 429}, true},
+		{"timeout error", model.ValidationResult{Error: "request failed: timeout"}, true},
+		{"connection refused", model.ValidationResult{Error: "request failed: connection refused"}, true},
+		{"create request error", model.ValidationResult{Error: "create request: invalid URL"}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			got := isRetryableValidationResult(tt.result)
+			if got != tt.retryable {
+				t.Errorf("isRetryableValidationResult(%s) = %v, want %v", tt.desc, got, tt.retryable)
+			}
+		})
 	}
 }
 

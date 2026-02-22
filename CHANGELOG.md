@@ -5,6 +5,21 @@ All notable changes to Entropia will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-02-22
+
+### Added
+- HTTP retry with exponential backoff for fetcher and validator (3 attempts, 1s/2s/4s)
+- Pipeline caching wired up (memory + disk, respects `--no-cache` flag)
+- Per-domain rate limiting wired up in batch processor (configurable RPS)
+- Fetcher test suite (7 tests covering retry, backoff, error classification)
+- Validator retry tests (5 tests covering transient/permanent failures, 429)
+- Scorer test coverage expanded from ~20% to 97.6% (19 new tests)
+
+### Changed
+- Shared `NewProxyFunc` extracted to `internal/util/` (DRY refactor)
+- `ScanURL` now uses `FetchWithRetry` instead of `Fetch`
+- `BatchProcessor` constructor accepts rate limiting parameters
+
 ## [0.2.0] - 2026-02-20
 
 ### Added
