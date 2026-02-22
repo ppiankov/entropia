@@ -4,12 +4,18 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/ppiankov/entropia/internal/model"
+	"github.com/ppiankov/entropia/internal/util"
 )
+
+const validateMaxRetries = 3
+
+// validateSleepFunc is the sleep function used between retries (injectable for tests)
+var validateSleepFunc = time.Sleep
 
 // Validator validates evidence links concurrently
 type Validator struct {
@@ -18,29 +24,13 @@ type Validator struct {
 	authority  *AuthorityClassifier
 }
 
-func newProxyFunc(httpProxy, httpsProxy, noProxy string) func(*http.Request) (*url.URL, error) {
-	if httpProxy == "" && httpsProxy == "" {
-		return http.ProxyFromEnvironment
-	}
-
-	return func(req *http.Request) (*url.URL, error) {
-		if req.URL.Scheme == "https" && httpsProxy != "" {
-			return url.Parse(httpsProxy)
-		}
-		if httpProxy != "" {
-			return url.Parse(httpProxy)
-		}
-		return http.ProxyFromEnvironment(req)
-	}
-}
-
 // NewValidator creates a new validator
 func NewValidator(timeout time.Duration, maxWorkers int, authConfig *model.AuthorityConfig, httpProxy, httpsProxy, noProxy string) *Validator {
 	if maxWorkers <= 0 {
 		maxWorkers = 20
 	}
 
-	proxyFunc := newProxyFunc(httpProxy, httpsProxy, noProxy)
+	proxyFunc := util.NewProxyFunc(httpProxy, httpsProxy, noProxy)
 
 	return &Validator{
 		httpClient: &http.Client{
@@ -92,8 +82,8 @@ func (v *Validator) Validate(ctx context.Context, evidence []model.Evidence) ([]
 			// Release semaphore when done
 			defer func() { <-semaphore }()
 
-			// Validate the evidence
-			results[idx] = v.validateSingle(ctx, e)
+			// Validate the evidence with retry
+			results[idx] = v.validateSingleWithRetry(ctx, e)
 		}(i, ev)
 	}
 
@@ -164,6 +154,49 @@ func (v *Validator) validateSingle(ctx context.Context, evidence model.Evidence)
 	}
 
 	return result
+}
+
+// validateSingleWithRetry retries transient failures with exponential backoff
+func (v *Validator) validateSingleWithRetry(ctx context.Context, evidence model.Evidence) model.ValidationResult {
+	var result model.ValidationResult
+	for attempt := 0; attempt < validateMaxRetries; attempt++ {
+		result = v.validateSingle(ctx, evidence)
+		if !isRetryableValidationResult(result) {
+			return result
+		}
+		if attempt < validateMaxRetries-1 {
+			backoff := time.Duration(1<<uint(attempt)) * time.Second
+			validateSleepFunc(backoff)
+		}
+	}
+	return result
+}
+
+// isRetryableValidationResult returns true for results that indicate transient failures
+func isRetryableValidationResult(result model.ValidationResult) bool {
+	// Retry on 5xx server errors
+	if result.StatusCode >= 500 && result.StatusCode < 600 {
+		return true
+	}
+	// Retry on 429 rate limit
+	if result.StatusCode == 429 {
+		return true
+	}
+	// Retry on network errors (timeout, connection refused)
+	if result.Error != "" {
+		if isRetryableNetworkError(result.Error) {
+			return true
+		}
+	}
+	return false
+}
+
+// isRetryableNetworkError checks error strings for transient network failures
+func isRetryableNetworkError(errMsg string) bool {
+	s := strings.ToLower(errMsg)
+	return strings.Contains(s, "timeout") ||
+		strings.Contains(s, "connection refused") ||
+		strings.Contains(s, "connection reset")
 }
 
 // ValidateBatch is a convenience method for validating evidence with default settings

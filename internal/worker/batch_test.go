@@ -31,7 +31,7 @@ func (m *MockScanner) ScanURL(ctx context.Context, url string) (*pipeline.ScanRe
 
 func TestBatchProcessor_ProcessURLs(t *testing.T) {
 	scanner := &MockScanner{}
-	processor := NewBatchProcessor(scanner, 2)
+	processor := NewBatchProcessor(scanner, 2, 0, 0)
 
 	urls := []string{"http://example.com", "http://google.com", "http://bing.com"}
 	ctx := context.Background()
@@ -61,7 +61,7 @@ func TestBatchProcessor_ProcessURLs(t *testing.T) {
 
 func TestBatchProcessor_ProcessURLs_Error(t *testing.T) {
 	scanner := &MockScanner{ShouldError: true}
-	processor := NewBatchProcessor(scanner, 2)
+	processor := NewBatchProcessor(scanner, 2, 0, 0)
 
 	urls := []string{"http://example.com"}
 	ctx := context.Background()
@@ -82,7 +82,7 @@ func TestBatchProcessor_ProcessURLs_Error(t *testing.T) {
 
 func TestBatchProcessor_ProcessURLs_Empty(t *testing.T) {
 	scanner := &MockScanner{}
-	processor := NewBatchProcessor(scanner, 2)
+	processor := NewBatchProcessor(scanner, 2, 0, 0)
 
 	results := processor.ProcessURLs(context.Background(), []string{})
 	if len(results) != 0 {
@@ -166,7 +166,7 @@ func TestBatchProcessor_ProcessFile(t *testing.T) {
 	}
 
 	scanner := &MockScanner{}
-	processor := NewBatchProcessor(scanner, 2)
+	processor := NewBatchProcessor(scanner, 2, 0, 0)
 
 	results, err := processor.ProcessFile(context.Background(), tmpfile.Name())
 	if err != nil {
@@ -180,7 +180,7 @@ func TestBatchProcessor_ProcessFile(t *testing.T) {
 
 func TestBatchProcessor_ProcessFile_NonExistent(t *testing.T) {
 	scanner := &MockScanner{}
-	processor := NewBatchProcessor(scanner, 2)
+	processor := NewBatchProcessor(scanner, 2, 0, 0)
 
 	_, err := processor.ProcessFile(context.Background(), "no_such_file.txt")
 	if err == nil {
@@ -199,7 +199,7 @@ func TestBatchProcessor_ProcessFile_Empty(t *testing.T) {
 	}
 
 	scanner := &MockScanner{}
-	processor := NewBatchProcessor(scanner, 2)
+	processor := NewBatchProcessor(scanner, 2, 0, 0)
 
 	results, err := processor.ProcessFile(context.Background(), tmpfile.Name())
 	if err != nil {
