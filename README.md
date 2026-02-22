@@ -9,6 +9,27 @@ Entropia evaluates how well claims are supported by available, current, and auth
 
 **Entropia is a mirror, not an oracle** - it does NOT determine truth, but shows the quality of evidence support.
 
+## Project Status
+
+**Status: Beta** · **v0.3.0** · Pre-1.0
+
+| Milestone | Status |
+|-----------|--------|
+| Core pipeline (fetch/extract/validate/score/render) | Complete |
+| Domain adapters (Wikipedia, Legal, Generic) | Complete |
+| LLM integration (OpenAI, Anthropic, Ollama) | Complete |
+| Proxy support (HTTP_PROXY/HTTPS_PROXY/NO_PROXY) | Complete |
+| Layered caching (memory + disk) | Complete |
+| Per-domain rate limiting | Complete |
+| HTTP retry with exponential backoff | Complete |
+| Test coverage >90% | Complete |
+| CI pipeline (test/lint) | Complete |
+| Homebrew distribution | Complete |
+| API stability guarantees | Partial |
+| v1.0 release | Planned |
+
+Pre-1.0: CLI flags and config schemas may change between minor versions. JSON output structure is stable.
+
 ---
 
 ## 🚀 Quick Start
