@@ -1,0 +1,116 @@
+# entropia — Project Context
+
+## What it is
+Evidence support and decay diagnostics for public claims. Scans web pages, extracts claims and evidence, validates links, scores support quality (0-100), detects conflicts. Non-normative — evaluates support, not truth.
+
+## What it is NOT
+- Not a fact-checker or truth arbiter (mirror, not oracle)
+- Not ML-based (deterministic scoring with documented formulas)
+- No cloud, no accounts, no telemetry
+- Not a crawler or scraper — single-page analysis tool
+
+## Current state
+All work orders (E01-E13) are implemented and released as v0.3.0 via Homebrew (`brew install ppiankov/tap/entropia`). 4 phases complete: code quality, test coverage, features, production hardening.
+
+### Completed WOs
+**Phase 1: Code Quality**
+- E01: Fix 19 lint errors (unchecked error returns)
+- E02: Version injection via LDFLAGS
+- E03: Project CLAUDE.md
+- E04: Go version aligned to 1.25
+
+**Phase 2: Test Coverage**
+- E05: Worker package tests (0% -> 93%)
+- E06: LLM provider tests (mock HTTP)
+
+**Phase 3: Features**
+- E07: Proxy support (HTTP_PROXY/HTTPS_PROXY/NO_PROXY for all HTTP clients)
+- E08: Homebrew packaging and release workflow
+
+**Phase 4: Production Hardening**
+- E09: Pipeline caching wired up (memory + disk LayeredCache, --no-cache flag)
+- E10: Per-domain rate limiting wired up in batch processor (configurable RPS)
+- E11: HTTP retry with exponential backoff (fetcher + validator, 3 attempts, 1s/2s/4s)
+- E12: Scorer test coverage expanded (~20% -> 97.6%, 19 new tests)
+- E13: DRY proxy code (shared NewProxyFunc in internal/util/)
+
+## Architecture
+```
+cmd/entropia/main.go       -- entry point
+internal/
+  cli/                     -- Cobra commands (scan, batch, config, version)
+  pipeline/                -- Orchestrator: fetch -> extract -> validate -> score -> render
+    fetcher.go             -- HTML fetcher with retry, TLS info extraction
+    pipeline.go            -- ScanURL with caching, FetchWithRetry
+    renderer.go            -- JSON/Markdown output
+  extract/                 -- Claim + evidence extractors (keyword heuristics)
+    adapters/              -- Domain-specific: Wikipedia (edit wars), Legal, Generic
+  validate/                -- Concurrent evidence link validation with retry
+  score/                   -- Transparent scoring (coverage + authority + freshness + accessibility - conflicts)
+  cache/                   -- Layered cache (memory + disk)
+  worker/                  -- Pool, batch processor with rate limiting
+  llm/                     -- Optional LLM summarizer (OpenAI, Anthropic, Ollama)
+  model/                   -- Data types (Config, Report, Claim, Evidence, Score, Signal)
+  util/                    -- Shared utilities (proxy)
+```
+
+## Scoring formula (0-100)
+- Evidence Coverage (0-40): min(evidence/claims * 40, 40)
+- Authority Distribution (0-30): (primary*3 + secondary*2 + tertiary*1) / (total*3) * 30
+- Freshness (0-20): 20 - min(median_age_years * 5, 20)
+- Accessibility (0-10): accessible_count / total * 10
+- Conflict Penalty (-10): applied for mutually exclusive origin claims
+- Confidence: low (<3 evidence or score<60), medium (60-79), high (80+), low-medium (conflict)
+
+## Key design decisions
+- Non-normative: evaluates support quality, not truth of claims
+- Transparent: every score component has documented formula and visible inputs
+- Symmetric: same rules for all sources regardless of editorial stance
+- Deterministic: keyword-based extraction, no ML/NLP
+- LLM summary is optional and NEVER affects scoring (separate output file)
+- Adapter pattern for domain-specific extraction (Wikipedia, Legal, Generic)
+- Per-domain rate limiting via token bucket (default 2 RPS)
+- Layered cache: memory (fast) + disk (persistent), 24h TTL
+- HTTP retry: 3 attempts with exponential backoff, retries on timeout/429/5xx
+- Authority tiers: Primary (.gov, .edu, DOI), Secondary (Wikipedia, NYT, BBC), Tertiary (blogs)
+
+## Dependencies
+- github.com/spf13/cobra (CLI)
+- github.com/spf13/viper (config)
+- golang.org/x/net/html (HTML parsing)
+- golang.org/x/time/rate (rate limiting)
+
+## Build & verify
+```bash
+make build    # bin/entropia
+make test     # go test -race -cover ./...
+make lint     # golangci-lint run ./...
+```
+
+## Release
+```bash
+git tag v0.X.Y && git push origin main v0.X.Y
+# Release workflow builds, creates GitHub release, updates homebrew-tap
+brew update && brew upgrade entropia
+```
+
+## Cross-project integration
+- **noisepan**: `noisepan verify` calls `entropia scan <url> --json` on read_now posts
+- Both tools installed via `brew install ppiankov/tap/<name>`
+
+## Pending WOs
+None — all work orders (E01-E13) are complete. v0.3.0 released.
+
+## Known issues
+- Claim extraction is keyword-based (18 heuristics) — may miss non-matching claims
+- Conflict detection limited to origin-based ("originated in X" vs "originated in Y")
+- Freshness detection requires Last-Modified headers (not all sites provide this)
+- Legal document adapter has incomplete evidence extraction
+- Wikipedia edit war detection requires API access (may be rate-limited)
+
+## Conventions
+- Go 1.25+, CGO enabled (for x/net/html)
+- LDFLAGS: `-X .../internal/cli.Version=$(VERSION_NUM)` — no v prefix
+- Tests mandatory, -race flag, httptest for HTTP mocking
+- Injectable sleep functions for retry test speed (fetchSleepFunc, validateSleepFunc)
+- Conventional commits: `type: concise imperative statement`, no Co-Authored-By

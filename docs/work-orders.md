@@ -254,3 +254,71 @@ WO-E08 (Homebrew) ────→ done
 ```
 
 E01-E04 are independent and can be parallelized. E07 depends on E01 (clean lint baseline before adding new code).
+
+---
+
+## Phase 4: Production Hardening
+
+### WO-E09: Wire up caching to pipeline
+
+**Status:** `[x]` done
+
+Add `*cache.LayeredCache` to Pipeline. Check cache before fetch, store report JSON after scoring. Respect `cfg.Cache.Enabled` and `--no-cache` flag.
+
+| File | Change |
+|------|--------|
+| `internal/pipeline/pipeline.go` | Add cache field, init in NewPipeline, check/store in ScanURL |
+
+---
+
+### WO-E10: Wire up rate limiting to batch processor
+
+**Status:** `[x]` done
+
+Create `Limiter` in `NewBatchProcessor()`. Apply `limiter.Wait()` before each scan job.
+
+| File | Change |
+|------|--------|
+| `internal/worker/batch.go` | Add limiter to BatchProcessor and ScanJob, call Wait before scan |
+| `internal/cli/batch.go` | Pass RPS and burst config to NewBatchProcessor |
+
+---
+
+### WO-E11: HTTP retry with exponential backoff
+
+**Status:** `[x]` done
+
+Add `FetchWithRetry()` to fetcher and `validateSingleWithRetry()` to validator. Max 3 attempts, backoff 1s/2s/4s. Retry on timeout, 429, 5xx.
+
+| File | Change |
+|------|--------|
+| `internal/pipeline/fetcher.go` | Add FetchWithRetry, isRetryableFetchError, injectable sleep |
+| `internal/pipeline/fetcher_test.go` | New: 7 tests (transient, permanent, 429, exhausted, error classification) |
+| `internal/validate/validator.go` | Add validateSingleWithRetry, isRetryableValidationResult |
+| `internal/validate/validator_test.go` | Add 5 retry tests + init() for fast sleep |
+
+---
+
+### WO-E12: Scorer test coverage
+
+**Status:** `[x]` done
+
+Expand scorer tests from ~20% to 97.6%. Cover conflict detection, freshness, authority distribution, edge cases, confidence thresholds, freshness anomaly.
+
+| File | Change |
+|------|--------|
+| `internal/score/scorer_test.go` | 19 new tests covering all scoring paths |
+
+---
+
+### WO-E13: DRY proxy code
+
+**Status:** `[x]` done
+
+Extract shared `NewProxyFunc` to `internal/util/proxy.go`. Remove duplicates from fetcher and validator.
+
+| File | Change |
+|------|--------|
+| `internal/util/proxy.go` | New: shared NewProxyFunc |
+| `internal/pipeline/fetcher.go` | Import from util, remove local copy |
+| `internal/validate/validator.go` | Import from util, remove local copy |
