@@ -20,10 +20,22 @@ type Scanner interface {
 type ScanJob struct {
 	URL     string
 	Scanner Scanner
+	Limiter *Limiter
 }
 
 // Execute executes the scan job
 func (j *ScanJob) Execute(ctx context.Context) Result {
+	// Apply rate limiting before scanning
+	if j.Limiter != nil {
+		if err := j.Limiter.Wait(ctx, j.URL); err != nil {
+			return &ScanResult{
+				URL:    j.URL,
+				Report: nil,
+				Error:  fmt.Errorf("rate limit: %w", err),
+			}
+		}
+	}
+
 	result, err := j.Scanner.ScanURL(ctx, j.URL)
 	if err != nil {
 		return &ScanResult{
@@ -55,13 +67,20 @@ func (r *ScanResult) GetError() error {
 type BatchProcessor struct {
 	scanner     Scanner
 	concurrency int
+	limiter     *Limiter
 }
 
 // NewBatchProcessor creates a new batch processor
-func NewBatchProcessor(scanner Scanner, concurrency int) *BatchProcessor {
+func NewBatchProcessor(scanner Scanner, concurrency int, rps float64, burst int) *BatchProcessor {
+	var limiter *Limiter
+	if rps > 0 {
+		limiter = NewLimiter(rps, burst)
+	}
+
 	return &BatchProcessor{
 		scanner:     scanner,
 		concurrency: concurrency,
+		limiter:     limiter,
 	}
 }
 
@@ -80,6 +99,7 @@ func (b *BatchProcessor) ProcessURLs(ctx context.Context, urls []string) []*Scan
 		job := &ScanJob{
 			URL:     url,
 			Scanner: b.scanner,
+			Limiter: b.limiter,
 		}
 		pool.Submit(job)
 	}

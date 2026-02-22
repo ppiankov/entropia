@@ -126,7 +126,7 @@ func runBatch(cmd *cobra.Command, args []string) error {
 	p := pipeline.NewPipeline(cfg)
 
 	// Create batch processor
-	processor := worker.NewBatchProcessor(p, concurrency)
+	processor := worker.NewBatchProcessor(p, concurrency, cfg.RateLimiting.RequestsPerSecond, cfg.RateLimiting.BurstSize)
 
 	// Process URLs
 	fmt.Fprintf(os.Stderr, "⚙️  Reading URLs from file...\n")
