@@ -1,9 +1,9 @@
 # Entropia
-
 **A non-normative tool for detecting entropy, decay, and support gaps in public claims.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev/)
+[![ANCC](https://img.shields.io/badge/ANCC-compliant-brightgreen)](https://ancc.dev)
 
 Entropia evaluates how well claims are supported by available, current, and authoritative sources. It highlights conflicts, gaps, and drift between claims and evidence.
 
